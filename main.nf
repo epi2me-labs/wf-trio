@@ -35,7 +35,7 @@ process getVersions {
 
 
 process makeReport {
-    label "wftemplate"
+    label "wftrio"
     input:
         val metadata
         tuple path(per_read_stats, stageAs: "stats/stats*.tsv.gz"), val(no_stats)
@@ -43,9 +43,9 @@ process makeReport {
         path "versions/*"
         path "params.json"
     output:
-        path "wf-template-*.html"
+        path "wf-trio-*.html"
     script:
-        String report_name = "wf-template-report.html"
+        String report_name = "wf-trio-report.html"
         String metadata = new JsonBuilder(metadata).toPrettyString()
         String stats_args = no_stats ? "" : "--stats stats"
         String client_fields_args = client_fields.name == OPTIONAL_FILE.name ? "" : "--client_fields $client_fields"

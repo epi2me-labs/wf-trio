@@ -1,6 +1,6 @@
-# Template workflow
+# Trio Sequencing workflow
 
-Nextflow workflow template repository.
+Nextflow workflow for trio sequencing analysis.
 
 
 
@@ -132,13 +132,6 @@ input_reads.fastq   ─── input_directory  ─── input_directory
 | out_dir | string | Directory for output of all workflow results. |  | output |
 
 
-### Miscellaneous Options
-
-| Nextflow parameter name  | Type | Description | Help | Default |
-|--------------------------|------|-------------|------|---------|
-| disable_ping | boolean | Enable to prevent sending a workflow ping. |  | False |
-
-
 
 
 
@@ -149,7 +142,7 @@ Output files may be aggregated including information for all samples or provided
 
 | Title | File path | Description | Per sample or aggregated |
 |-------|-----------|-------------|--------------------------|
-| workflow report | ./wf-template-report.html | Report for all samples | aggregated |
+| workflow report | ./wf-trio-report.html | Report for all samples | aggregated |
 | Per file read stats | ./fastq_ingress_results/reads/fastcat_stats/per-file-stats.tsv | A TSV with per file read stats, including all samples. | aggregated |
 | Per read stats | ./fastq_ingress_results/reads/fastcat_stats/per-read-stats.tsv | A TSV with per read stats, including all samples. | aggregated |
 | Run ID's | ./fastq_ingress_results/reads/fastcat_stats/run_ids | List of run ID's present in reads. | aggregated |

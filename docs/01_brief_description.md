@@ -1,1 +1,1 @@
-Nextflow workflow template repository.
+Nextflow workflow for trio sequencing analysis.

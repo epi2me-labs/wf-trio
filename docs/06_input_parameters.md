@@ -23,10 +23,3 @@
 | out_dir | string | Directory for output of all workflow results. |  | output |
 
 
-### Miscellaneous Options
-
-| Nextflow parameter name  | Type | Description | Help | Default |
-|--------------------------|------|-------------|------|---------|
-| disable_ping | boolean | Enable to prevent sending a workflow ping. |  | False |
-
-

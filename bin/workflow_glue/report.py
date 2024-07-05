@@ -15,7 +15,7 @@ def main(args):
     """Run the entry point."""
     logger = get_named_logger("Report")
     report = labs.LabsReport(
-        "Workflow Template Sequencing report", "wf-template",
+        "Workflow Template Sequencing report", "wf-trio",
         args.params, args.versions, args.wf_version)
 
     client_fields = None

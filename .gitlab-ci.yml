@@ -5,12 +5,16 @@ include:
 
 variables:
     # We'll use the single-file case for these runs
-    NF_WORKFLOW_OPTS: "--fastq test_data/reads.fastq.gz"
-    TEST_CMD: "bash test/run_ingress_test.sh"
-    S3_TEST_DATA: "s3://ont-exd-int-s3-euwst1-epi2me-labs/wf-template/cw-1019/test_data"
+    NF_BEFORE_SCRIPT: mkdir -p ${CI_PROJECT_NAME}/data/ && wget -O ${CI_PROJECT_NAME}/data/wf-trio-test.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-trio/wf-trio-test.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/wf-trio-test.tar.gz -C  ${CI_PROJECT_NAME}/data/
+    NF_WORKFLOW_OPTS: "--proband_bam wf-trio/data/wf-trio-test/Ashkenazi_test_TP_data/nf_bam_test_hg002/hg002.bam \
+        --mat_bam wf-trio/data/wf-trio-test/Ashkenazi_test_TP_data/nf_bam_test_hg004 \
+        --pat_bam wf-trio/data/wf-trio-test/Ashkenazi_test_TP_data/nf_bam_test_hg003 \
+        --ref wf-trio/data/wf-trio-test/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta \
+        --bed  wf-trio/data/wf-trio-test/Ashkenazi_test_TP.bed"
     CI_FLAVOUR: "new"
     PYTEST_CONTAINER_NAME: "wf-common"
     PYTEST_CONTAINER_CONFIG_KEY: "common_sha="
+    RELEASE_WORKFLOW: "no" # do not release this workflow
 
 
 # Remove this block in downstream templates
@@ -23,23 +27,18 @@ docker-run:
 
     # Remove this directive in downstream templates
     tags: [] # no need for big ram
-
-    # Define a 1D job matrix to inject a variable named MATRIX_NAME into
-    #   the CI environment, we can use the value of MATRIX_NAME to determine
-    #   which options to apply as part of the rules block below
-    # NOTE There is a slightly cleaner way to define this matrix to include
-    #   the variables, but it is broken when using long strings! See CW-756
     parallel:
         matrix:
-            # TODO: do we really need to run all from s3?
-            - MATRIX_NAME: [
-                "single-file" ]
+            - MATRIX_NAME: [ "trio"]
     rules:
-        # NOTE As we're overriding the rules block for the included docker-run
-        #   we must redefine this CI_COMMIT_BRANCH rule to prevent docker-run
-        #   being incorrectly scheduled for "detached merge request pipelines" etc.
         - if: ($CI_COMMIT_BRANCH == null || $CI_COMMIT_BRANCH == "dev-template")
           when: never
-        - if: $MATRIX_NAME == "single-file"
+        - if: $MATRIX_NAME == "trio"
           variables:
-            NF_WORKFLOW_OPTS: "--fastq test_data/reads.fastq.gz"
+              NF_BEFORE_SCRIPT: mkdir -p ${CI_PROJECT_NAME}/data/ && wget -O ${CI_PROJECT_NAME}/data/wf-trio-test.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-trio/wf-trio-test.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/wf-trio-test.tar.gz -C ${CI_PROJECT_NAME}/data/
+              NF_WORKFLOW_OPTS: "-executor.\\$$local.memory 16GB \
+              --proband_bam wf-trio/data/wf-trio-test/Ashkenazi_test_TP_data/nf_bam_test_hg002/hg002.bam \
+              --pat_bam wf-trio/data/wf-trio-test/Ashkenazi_test_TP_data/nf_bam_test_hg003 \
+              --mat_bam wf-trio/data/wf-trio-test/Ashkenazi_test_TP_data/nf_bam_test_hg004 \
+              --ref wf-trio/data/wf-trio-test/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta \
+              --bed  wf-trio/data/wf-trio-test/Ashkenazi_test_TP.bed"

@@ -36,6 +36,7 @@ the following command:
 ```
 nextflow pull epi2me-labs/wf-trio
 ```
+
 A demo dataset is provided for testing of the workflow.
 It can be downloaded and unpacked using the following commands:
 ```
@@ -51,5 +52,6 @@ nextflow run epi2me-labs/wf-trio \
 	--ref wf-trio-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta \
 	-profile standard
 ```
+
 For further information about running a workflow on
 the command line see https://labs.epi2me.io/wfquickstart/

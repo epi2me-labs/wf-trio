@@ -10,7 +10,11 @@ variables:
         --mat_bam wf-trio/data/wf-trio-test/Ashkenazi_test_TP_data/nf_bam_test_hg004 \
         --pat_bam wf-trio/data/wf-trio-test/Ashkenazi_test_TP_data/nf_bam_test_hg003 \
         --ref wf-trio/data/wf-trio-test/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta \
-        --bed  wf-trio/data/wf-trio-test/Ashkenazi_test_TP.bed"
+        --bed  wf-trio/data/wf-trio-test/Ashkenazi_test_TP.bed \
+        --family_id Ashkenazi \
+        --proband_sample_name hg002 --pat_sample_name hg003 --mat_sample_name hg004 \
+        --pedigree_file wf-trio/data/wf-trio-test/ped_file.tsv \
+        --glnexus_config data/glnexus_conf.yml"
     CI_FLAVOUR: "new"
     PYTEST_CONTAINER_NAME: "wf-common"
     PYTEST_CONTAINER_CONFIG_KEY: "common_sha="
@@ -29,7 +33,7 @@ docker-run:
     tags: [] # no need for big ram
     parallel:
         matrix:
-            - MATRIX_NAME: [ "trio"]
+            - MATRIX_NAME: [ "trio", "trio-without-bed"]
     rules:
         - if: ($CI_COMMIT_BRANCH == null || $CI_COMMIT_BRANCH == "dev-template")
           when: never
@@ -41,4 +45,18 @@ docker-run:
               --pat_bam wf-trio/data/wf-trio-test/Ashkenazi_test_TP_data/nf_bam_test_hg003 \
               --mat_bam wf-trio/data/wf-trio-test/Ashkenazi_test_TP_data/nf_bam_test_hg004 \
               --ref wf-trio/data/wf-trio-test/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta \
-              --bed  wf-trio/data/wf-trio-test/Ashkenazi_test_TP.bed"
+              --bed  wf-trio/data/wf-trio-test/Ashkenazi_test_TP.bed \
+              --family_id Ashkenazi \
+              --proband_sample_name hg002 --pat_sample_name hg003 --mat_sample_name hg004 \
+              --pedigree_file wf-trio/data/wf-trio-test/ped_file.tsv \
+              --glnexus_config data/glnexus_conf.yml"
+        - if: $MATRIX_NAME == "trio-without-bed"
+          variables:
+              NF_BEFORE_SCRIPT: mkdir -p ${CI_PROJECT_NAME}/data/ && wget -O ${CI_PROJECT_NAME}/data/wf-trio-test.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-trio/wf-trio-test.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/wf-trio-test.tar.gz -C ${CI_PROJECT_NAME}/data/
+              NF_WORKFLOW_OPTS: "-executor.\\$$local.memory 16GB \
+              --proband_bam wf-trio/data/wf-trio-test/Ashkenazi_test_TP_data/nf_bam_test_hg002/hg002.bam \
+              --pat_bam wf-trio/data/wf-trio-test/Ashkenazi_test_TP_data/nf_bam_test_hg003 \
+              --mat_bam wf-trio/data/wf-trio-test/Ashkenazi_test_TP_data/nf_bam_test_hg004 \
+              --ref wf-trio/data/wf-trio-test/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta \
+              --proband_sample_name hg002 --pat_sample_name hg003 --mat_sample_name hg004 \
+              --pedigree_file wf-trio/data/wf-trio-test/ped_file.tsv"

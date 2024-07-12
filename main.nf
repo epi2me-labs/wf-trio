@@ -70,7 +70,7 @@ process makeReport {
 // publish files from a workflow whilst decoupling the publish from the process steps.
 // The process takes a tuple containing the filename and the name of a sub-directory to
 // put the file into. If the latter is `null`, puts it into the top-level directory.
-process output {
+process publish {
     // publish inputs to output directory
     label "wf_common"
     publishDir (
@@ -222,23 +222,31 @@ workflow {
             it[1] // then just return the path to match the interface above
         }
     }
+    fam_id = Channel.of(params.family_id)
+    if (params.glnexus_config){
+        gl_conf = Channel.fromPath(params.glnexus_config, checkIfExists: true)
+    }
+    else{
+        gl_conf = Channel.fromPath("$projectDir/data/glnexus_conf.yml")
+        log.info "No glnexus_config provided using default: $projectDir/data/glnexus_conf.yml"
+    }
+    ped_file = Channel.fromPath(params.pedigree_file, checkIfExists: true)
+
     // Run trio pipeline
-    trio_results = trio(proband, pat, mat, snp_bed, clair3_model)
+    trio_results = trio(proband, pat, mat, snp_bed, clair3_model, fam_id, gl_conf, ped_file)
     // Get stats are standard report
     samples = proband.mix(pat, mat)
     pipeline(samples)
     // Output results
-    pipeline.out.ingress_results
-    | map {[ it, null]}
-    | concat (
-        pipeline.out.report.concat(pipeline.out.workflow_params)
-        | map { [it, null] }
-    )
+    pipeline.out.report.concat(pipeline.out.workflow_params)
+    | map { [it, null] }
     | concat(trio_results.vcf | map { [it, null] })
     | concat(trio_results.gvcf | map { [it, null] })
     | concat(trio_results.phased_vcf | map { [it, null] })
     | concat(trio_results.haplotagged_bam  | map { [it, null] })
-    | output
+    | concat(trio_results.multi_vcf  | map { [it, null] })
+    | concat(trio_results.rtg_sum | map { [it, null] })
+    | publish
 }
 
 workflow.onComplete {

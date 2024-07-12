@@ -10,11 +10,15 @@ include {
     haplotag_trio;
     cat_haplotagged_contigs;
     checkEnv_trio;
-}from '../modules/local/wf-trio'
+    glnexus;
+    rtgTools;
+    sortgvcf_Trio_contig;
+} from '../modules/local/wf-trio'
 
 include {
     index_ref_fai;
-    cram_cache
+    cram_cache;
+    concat_vcfs;
 } from '../modules/local/common'
 
 include {
@@ -30,8 +34,12 @@ workflow trio {
         mat_bam
         snp_bed
         clair3_model
+        fam_id
+        gl_conf
+        ped_file
 
     main:
+
         // To do: Add cram handling and CI test
         extensions = ['bam', 'bai']
         
@@ -41,7 +49,6 @@ workflow trio {
         for (N in chromosomes.flatten()){
             chromosome_codes += ["chr${N}", "${N}"]
         }
-
 
         // Prepare bams required for snp calling
         proband_sample = proband_bam.map{ meta, bam, bai, stats -> [meta, bam, bai]}
@@ -126,6 +133,7 @@ workflow trio {
             .combine(checkEnv_trio.out.tmp))
          
         mergeVcf_Trio.out.merged_gvcf
+            | map{ meta, contig, vcf -> [meta, vcf]}
             | groupTuple()
             | combine(ref_channel)
             | combine(checkEnv_trio.out.tmp)
@@ -146,7 +154,7 @@ workflow trio {
             phase_trio.out.phased | combine(bams_to_phase, by:0) | combine(ref_channel) | haplotag_trio
             cat_haplotagged_contigs(haplotag_trio.out.haplotag_bam.groupTuple().combine(ref_channel), extensions)
             hap_bam = cat_haplotagged_contigs.out.merged_xam.flatten()
-            phased_vcfs = sortphased_Trio.out.final_vcf.map{ it -> it[1]}
+            phased_vcfs = sortphased_Trio.out.final_vcf.flatMap{ meta, vcf, tbi -> [vcf, tbi]}
         } else {
             hap_bam = Channel.empty()
             phased_vcfs = Channel.empty()
@@ -155,10 +163,53 @@ workflow trio {
         // Prepare outputs
         vcfs = sortmergedVcf_Trio.out.sorted_trio.flatMap{ meta, vcf, tbi -> [vcf, tbi] }
         gvcfs = sortmergedGVcf_Trio.out.sorted_trio.flatMap{ meta, vcf, tbi -> [vcf, tbi] }
+
+
+        // Prepare per contig VCFS for GLNEXUS
+        //sort gvcfs per contig
+        sorted_per_contig = sortgvcf_Trio_contig(mergeVcf_Trio.out.merged_gvcf.combine(ref_channel)
+            .combine(checkEnv_trio.out.tmp))
+        contig_vcfs_branched = sorted_per_contig
+        | branch{
+            meta, contig, gvcf, tbi ->
+            proband: meta.alias == "${params.proband_sample_name}"
+            paternal: meta.alias == "${params.pat_sample_name}"
+            maternal: meta.alias == "${params.mat_sample_name}"
+        }
+        proband_contig_gvcf = contig_vcfs_branched.proband.map{ meta, contig, gvcf, tbi-> [contig, gvcf]}
+        paternal_contig_gvcf = contig_vcfs_branched.paternal.map{ meta, contig, gvcf, tbi-> [contig, gvcf]}
+        maternal_contig_gvcf = contig_vcfs_branched.maternal.map{ meta, contig, gvcf, tbi-> [contig, gvcf]}
+        grouped_gvcf_per_contig = proband_contig_gvcf
+        | join(paternal_contig_gvcf)
+        | join(maternal_contig_gvcf)
+
+        proband_contig_vcf = mergeVcf_Trio.out.merged_vcf.filter { meta, vcf, tbi ->
+            meta.alias == "${params.proband_sample_name}"}.map{ meta, contig, vcf -> [contig, vcf]}
+        
+        // Run Glnexus for joint variant calling - considering all of the trio simultaniously 
+        gln = glnexus(
+            grouped_gvcf_per_contig
+            | join(proband_contig_vcf)
+            | combine(fam_id)
+            | combine(gl_conf)
+        )
+        merged_sorted_vcf = gln | groupTuple | concat_vcfs
+        // RTG tools on final vcf to checks a multi-sample VCF file for variant calls which do not follow Mendelian
+        //inheritance, and compute aggregate sample concordance
+        rtg = rtgTools(merged_sorted_vcf.final_vcf, ref, ped_file)
+
+        // Prepare outputs
+        rtg_summary = rtg.summary.map{ family_name, sum -> sum }
+        gl_vcf = merged_sorted_vcf.final_vcf.flatMap{ family_name, vcf, tbi -> [vcf, tbi]}
+
     emit:
         vcf = vcfs
         gvcf = gvcfs
         phased_vcf = phased_vcfs
         haplotagged_bam = hap_bam
+        phased_vcf = phased_vcfs
+        haplotagged_bam = hap_bam
+        multi_vcf = gl_vcf
+        rtg_sum = rtg_summary
 
 }

@@ -197,14 +197,14 @@ process mergeVcf_Trio {
             path(aggregated_gvcf), path("candidate_beds")
     output:
        tuple val(meta), val(contig), path("merge_${contig}.vcf"), emit: merged_vcf
-       tuple val(meta), path("merge_${contig}.gvcf"), emit: merged_gvcf
+       tuple val(meta), val(contig), path("merge_${contig}.gvcf"), emit: merged_gvcf
     script:
         """
         pypy \$CLAIR3_NOVA_PATH/clair3.py MergeVcf_Trio \
         --pileup_vcf_fn pileup.vcf.gz \
         --trio_vcf_fn ${meta.alias}_c3t.vcf.gz \
         --output_fn merge_${contig}.vcf \
-        --gvcf_fn  merge_${contig}.gvcf \
+        --gvcf_fn  "merge_${contig}.gvcf.lz4" \
         --platform ont \
         --print_ref_calls True \
         --gvcf True \
@@ -214,6 +214,11 @@ process mergeVcf_Trio {
         --non_var_gvcf_fn ${aggregated_gvcf} \
         --ref_fn ${ref} \
         --ctgName ${contig}
+
+        # mergevcf trio outputs gvcf as lz4 as is an intermediate file within clair3-nova
+        # to make it compatible with downstream tools in this workflow mainly glnexus uncompress
+        lz4 "merge_${contig}.gvcf.lz4" "merge_${contig}.gvcf"
+       
         """
 }
 
@@ -235,13 +240,14 @@ process sortmergedVcf_Trio {
     pypy \$CLAIR3_NOVA_PATH/clair3.py SortVcf_Trio \
     --input_dir merged_calls \
     --vcf_fn_prefix  "merge" \
-    --output_fn "${meta.alias}".wf_trio_snp.vcf \
+    --output_fn "${meta.alias}.wf_trio_snp.vcf" \
     --sampleName "${meta.alias}" \
     --ref_fn "$ref" \
     --tmp_path tmp \
     --contigs_fn tmp/CONTIGS
     """
 }
+
 
 process sortmergedGVcf_Trio {
     // all gvcf contigs per sample are merged and sorted
@@ -307,7 +313,7 @@ process sortphased_Trio {
         path(ref), path(ref_idx), path(ref_cache), env(REF_PATH),
         path("tmp")
     output:
-       tuple val(meta), path("${meta.alias}.phased.vcf.gz"), emit: final_vcf
+       tuple val(meta), path("${meta.alias}.phased.vcf.gz"), path("${meta.alias}.phased.vcf.gz.tbi"), emit: final_vcf
     script:
     """
     pypy \$CLAIR3_NOVA_PATH/clair3.py SortVcf_Trio \
@@ -384,5 +390,82 @@ process cat_haplotagged_contigs {
         samtools cat -b cat.fofn --no-PG -@ ${threads} -o "${meta.alias}.haplotagged.bam"
         samtools index -@ ${threads} -b "${meta.alias}.haplotagged.bam"
     fi
+    """
+}
+
+
+process sortgvcf_Trio_contig {
+    label "clair3nova"
+    cpus 2
+    maxRetries 3
+    memory { 8.GB * task.attempt }
+    errorStrategy = {task.exitStatus in [137,140] ? 'retry' : 'finish'}
+    input:
+       tuple val(meta), val(contig), path("calls/*"), path(ref), path(ref_idx), path(ref_cache), env(REF_PATH), path("tmp")
+    output:
+       tuple val(meta), val(contig), path("${meta.alias}.${contig}.gvcf.gz"), path("${meta.alias}.${contig}.gvcf.gz.tbi")
+    script:
+    """
+    echo -e ${contig} > CONTIGS
+    pypy \$CLAIR3_NOVA_PATH/clair3.py SortVcf_Trio \
+    --input_dir calls \
+    --vcf_fn_suffix ".gvcf" \
+    --output_fn "${meta.alias}.${contig}.gvcf" \
+    --sampleName "${meta.alias}" \
+    --ref_fn $ref \
+    --tmp_path tmp \
+    --contigs_fn CONTIGS
+    """
+}
+
+
+process glnexus {
+    cpus 6
+    memory { 8.GB * task.attempt }
+    maxRetries 3
+    errorStrategy = {task.exitStatus in [137,140] ? 'retry' : 'finish'}
+    label "wftrio"
+    input:
+       tuple val(contig),
+       path("proband.gvcf.gz"), path("paternal.gvcf.gz"), path("maternal.gvcf.gz"),
+       path("proband.vcf"), val(family_id), path("gl_config.yml")
+    output:
+       tuple val(family_id), path("${family_id}.${contig}.vcf.gz"), emit: gl_vcf
+    script:
+    def threads = task.cpus - 2
+    """
+    glnexus_cli --threads ${threads} --dir glnexus_DB --config "gl_config.yml" \
+    "proband.gvcf.gz" "paternal.gvcf.gz"  "maternal.gvcf.gz"  \
+    | bcftools view --threads 1 -o merged.vcf.gz -O z - && bcftools index --threads 1 -t merged.vcf.gz
+
+    echo -e ${params.proband_sample_name}"\\n"${params.pat_sample_name}"\\n"${params.mat_sample_name} > samples.lst
+    bgzip "proband.vcf"
+    tabix -p vcf "proband.vcf.gz"
+
+    bcftools annotate --collapse none -c "INFO/DNP:=DNP" -a "proband.vcf.gz" merged.vcf.gz \
+    | bcftools view -S samples.lst -o "${family_id}.${contig}.vcf.gz" && bcftools index --threads 1 -t "${family_id}.${contig}.vcf.gz"
+
+    """
+}
+
+
+process rtgTools {
+    cpus 4
+    memory 16.GB
+    label "wftrio"
+    input:
+       tuple val(family_id), path("joint_vcf.vcf.gz"), path("joint_vcf.vcf.gz.tbi")
+       path(ref_file)
+       path(ped_file)
+    output:
+       tuple val(family_id), path("*_RTGannot.txt"), emit: summary
+    script:
+    """
+    rtg RTG_MEM=16G format -o reference.sdf $ref_file
+
+    rtg RTG_MEM=15G mendelian -i "joint_vcf.vcf.gz" -o RTGannot.vcf.gz \
+     --pedigree=${ped_file} \
+     -t reference.sdf | tee ${family_id}_RTGannot.txt
+
     """
 }

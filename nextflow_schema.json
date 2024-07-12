@@ -46,6 +46,13 @@
                         }
                     }
                 },
+                "pedigree_file": {
+                    "type": "string",
+                    "format": "file-path",
+                    "title": "Pedigree file",
+                    "description": "TSV file containing the columns `family_id`, `individual_id`, `paternal_id`, `maternal_id`, `sex`, `phenotype`",
+                    "help_text": "See https://gatk.broadinstitute.org/hc/en-us/articles/360035531972-PED-Pedigree-format for further information."
+                },
                 "clair3_model_path": {
                     "type": "string",
                     "format": "directory-path",
@@ -92,7 +99,8 @@
                         "proband_bam",
                         "pat_bam",
                         "mat_bam",
-                        "ref"
+                        "ref",
+                        "pedigree_file"
                     ]
                 }
             ]
@@ -117,6 +125,11 @@
                     "type": "string",
                     "description": "A single sample name for non-multiplexed data. Permissible if passing a single .fastq(.gz) file or directory of .fastq(.gz) files.",
                     "default": "maternal"
+                },
+                "family_id": {
+                    "type": "string",
+                    "description": "A single family ID relating to the group of samples.",
+                    "default": "family1"
                 }
             }
         },
@@ -270,7 +283,13 @@
                     "type": "boolean",
                     "default": true,
                     "description": "Output a phased VCF and haplotagged BAM.",
-                    "help_text": "By default the workflow will output a phased VCF and haplotagged BAM, set to `false` to skip."
+                    "help_text": "By default the workflow will output a phased VCF and haplotagged BAM, set to False to skip."
+                },
+                "glnexus_config": {
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "glnexus config yaml file, a default one is provided.",
+                    "help_text": "See https://github.com/dnanexus-rnd/GLnexus/wiki/Configuration for further details."
                 },
                 "base_err": {
                     "type": "number",

@@ -472,13 +472,13 @@ process sift_clinvar_vcf {
 }
 
 process concat_vcfs {
+    label "wftrio"
     cpus 2
     memory 3.GB
     input:
-        path (vcfs_artifacts, stageAs: "vcfs/*")
-        val(prefix)
+        tuple val(prefix), path (vcfs_artifacts, stageAs: "vcfs/*")
     output:
-        tuple path ("${prefix}.vcf.gz"), path("${prefix}.vcf.gz.tbi"), emit: final_vcf
+        tuple val(prefix), path ("${prefix}.vcf.gz"), path("${prefix}.vcf.gz.tbi"), emit: final_vcf
     script:
         def concat_threads = Math.max(task.cpus - 1, 1)
         """

@@ -155,5 +155,5 @@ workflow ingress {
         reheadered_samples =  reheader_BAM(samples_with_relationship)
 
     emit:
-        bam_channel
+        reheadered_samples
 }

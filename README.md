@@ -86,10 +86,16 @@ tar -xzvf wf-trio-demo.tar.gz
 The workflow can then be run with the downloaded demo data using:
 ```
 nextflow run epi2me-labs/wf-trio \
-	--proband_bam wf-trio-demo/Ashkenazi_test_TP_data/nf_bam_test_hg002/hg002.bam \
-	--pat_bam wf-trio-demo/Ashkenazi_test_TP_data/nf_bam_test_hg003 \
-	--mat_bam wf-trio-demo/Ashkenazi_test_TP_data/nf_bam_test_hg004 \
-	--ref wf-trio-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta \
+	--bed 'wf-trio-demo/Ashkenazi_test_TP.bed' \
+	--family_id 'Ashkenazi' \
+	--mat_bam 'wf-trio-demo/Ashkenazi_test_TP_data/nf_bam_test_hg003' \
+	--mat_sample_name 'hg004' \
+	--pat_bam 'wf-trio-demo/Ashkenazi_test_TP_data/nf_bam_test_hg004' \
+	--pat_sample_name 'hg003' \
+	--pedigree_file 'wf-trio-demo/ped_file.tsv' \
+	--proband_bam 'wf-trio-demo/Ashkenazi_test_TP_data/nf_bam_test_hg002' \
+	--proband_sample_name 'hg002' \
+	--ref 'wf-trio-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta' \
 	-profile standard
 ```
 

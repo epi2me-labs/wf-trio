@@ -19,6 +19,8 @@ import textwrap
 parser = argparse.ArgumentParser()
 parser.add_argument("model_tsv")
 parser.add_argument("basecaller_cfg")
+# Model type can be clair3 or clair3_nova
+parser.add_argument("model_type")
 args = parser.parse_args()
 
 
@@ -42,15 +44,15 @@ def exit_obvious_error(header, error_msg, advice, width=80):
 with open(args.model_tsv) as tsv:
     for row in csv.DictReader(tsv, delimiter='\t'):
         if row["basecall_model_name"] == args.basecaller_cfg:
-            model = row["clair3_model_name"]
-            reason = row["clair3_nomodel_reason"]
+            model = row[f"{args.model_type}_model_name"]
+            reason = row["clair3_nova_no_model_reason"]
             if model == "-" or model == "":
                 # Basecalling model valid but no Clair3 model
                 exit_obvious_error(
-                    header="No appropriate Clair3 model.",
+                    header=f"No appropriate {args.model_type} model.",
                     error_msg=f"because {reason}.",
                     advice=(
-                        "It is not possible to run the SNP subworkflow "
+                        "It is not possible to run the trio subworkflow "
                         "with this data.\n"
                     )
                 )

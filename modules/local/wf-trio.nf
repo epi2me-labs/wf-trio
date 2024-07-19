@@ -135,7 +135,7 @@ process callVarBam_trio {
     mkdir -p calls
     echo $contig
     python \$CLAIR3_NOVA_PATH/clair3.py CallVarBam_Denovo \
-    --chkpnt_fn "/opt/custflow/epi2meuser/conda/bin/models/clair3_nova_models/${params.clair3_trio_model}/nova" \
+    --chkpnt_fn "${model_path}/nova" \
     --bam_fn_c proband.bam \
     --bam_fn_p1 pat.bam \
     --bam_fn_p2 mat.bam \

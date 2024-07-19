@@ -297,7 +297,7 @@ process aggregate_pileup_gvcf {
 // outside the container, by exporting them out of the container back to workdir.
 // This saves us passing around tuples of val(inside) and path(outside).
 process lookup_clair3_model {
-    label "wf_human_snp"
+    label "clair3nova"
     cpus 1
     memory 2.GB
     input:
@@ -307,9 +307,28 @@ process lookup_clair3_model {
         tuple env(clair3_model), path("model/")
     shell:
     '''
-    clair3_model=$(resolve_clair3_model.py lookup_table '!{basecall_model}')
+    clair3_model=$(resolve_clair3_model.py lookup_table '!{basecall_model}' clair3)
     cp -r ${CLAIR_MODELS_PATH}/${clair3_model} model
     echo "Basecall model: !{basecall_model}"
     echo "Clair3 model  : ${clair3_model}"
+    '''
+}
+
+
+process lookup_clair3_nova_model {
+    label "clair3nova"
+    cpus 1
+    memory 2.GB
+    input:
+        path("lookup_table")
+        val basecall_model
+    output:
+        tuple env(clair3_nova_model), path("nova_model/")
+    shell:
+    '''
+    clair3_nova_model=$(resolve_clair3_model.py lookup_table '!{basecall_model}' clair3_nova)
+    cp -r ${CLAIR_NOVA_MODELS_PATH}/${clair3_nova_model} nova_model
+    echo "Basecall model: !{basecall_model}"
+    echo "Clair3 nova model  : ${clair3_nova_model}"
     '''
 }

@@ -57,20 +57,15 @@
                     "type": "string",
                     "format": "directory-path",
                     "description": "Clair3 model directory.",
-                    "help_text": "The workflow will attempt to map the basecalling model used to a suitable Clair3 model. You can override this by providing the path to a model with this option instead. Models can be obtained from [this page](https://cdn.oxfordnanoportal.com/software/analysis/models/clair3/index.html).",
+                    "help_text": "The workflow will attempt to map the basecalling model used to a suitable Clair3 model. You can override this by providing the path to a model with this option instead. Models can be obtained from [this page](http://www.bio8.cs.hku.hk/clair3_trio/clair3_models/).",
                     "hidden": true
                 },
-                "clair3_trio_model": {
+                "clair3_nova_model_path": {
                     "type": "string",
                     "format": "directory-path",
-                    "description": "Clair3 model directory.",
-                    "help_text": "The clair3 trio model to use for calling variants. See all available models here [this page](http://www.bio8.cs.hku.hk/clair3_trio/clair3_nova_models/).",
-                    "hidden": true,
-                    "default": "r1041_e82_400bps_sup_nova",
-                    "enum": [
-                        "r1041_e82_400bps_sup_nova",
-                        "r941_prom_sup_g5014_nova"
-                    ]
+                    "description": "Clair3 Nova model directory.",
+                    "help_text": "The workflow will attempt to map the basecalling model used to a suitable Clair3 Nova model. You can override this by providing the path to a model with this option instead. Models can be obtained from [this page](http://www.bio8.cs.hku.hk/clair3_trio/clair3_nova_models/).",
+                    "hidden": true
                 },
                 "analyse_unclassified": {
                     "type": "boolean",
@@ -173,12 +168,11 @@
                         }
                     }
                 },
-                "basecaller_cfg": {
-                    "title": "Basecaller configuration",
+                "override_basecaller_cfg": {
+                    "title": "Override basecaller configuration",
                     "type": "string",
                     "description": "Name of the model to use for selecting a small variant calling model.",
-                    "help_text": "Required for small variant calling. The basecaller configuration is used to automatically select the appropriate small variant calling model. The model list shows all models that are compatible for small variant calling with this workflow. You should select 'custom' to override the basecaller_cfg with clair3_model_path.",
-                    "default": "dna_r10.4.1_e8.2_400bps_sup@v4.3.0",
+                    "help_text": "The workflow will attempt to find the basecaller model from the headers of your input data. Providing a value for this option will override the model found in the data. If the model cannot be found in the header, it must be provided with this option. The basecaller model is used to automatically select the appropriate small variant calling model. The model list shows all models that are compatible for small variant calling with this workflow. You should select 'custom' to override the basecaller_cfg with clair3_model_path.",
                     "enum": [
                         "dna_r9.4.1_e8_sup@v3.6",
                         "dna_r9.4.1_e8_hac@v3.3",

@@ -34,6 +34,7 @@ workflow trio {
         mat_bam
         snp_bed
         clair3_model
+        clair3_nova_model
         fam_id
         gl_conf
         ped_file
@@ -68,7 +69,8 @@ workflow trio {
 
         // Check Env - Clair3 trio version
         // to get contigs and tmp folder
-        checkEnv_trio(proband_sample, pat_sample, mat_sample, snp_bed, ref_channel, chromosome_codes, clair3_model)
+        // Use clair3 nova model for trio part of the workflow
+        checkEnv_trio(proband_sample, pat_sample, mat_sample, snp_bed, ref_channel, chromosome_codes, clair3_nova_model)
         contigs = checkEnv_trio.out.contigs_file.splitText() { it.trim() }
 
         // use clair3 split beds if BED was provided
@@ -84,6 +86,7 @@ workflow trio {
 
         // run clair3 on each sample
         // wf-human-snp also been updated to match clair3 version in nova workflow - may decide to swap back to snp but this seems to lead to different results
+        // Use normal clair3 model for pile up part of the workflow (which is largly just the clair3 pileup part)
         proband_snp = snp_proband(proband_sample, snp_bed, ref_channel, clair3_model, extensions, using_user_bed, chromosome_codes)
         pat_snp = snp_pat(pat_sample, snp_bed, ref_channel, clair3_model, extensions, using_user_bed, chromosome_codes)
         mat_snp = snp_mat(mat_sample, snp_bed, ref_channel, clair3_model, extensions, using_user_bed, chromosome_codes)
@@ -97,7 +100,7 @@ workflow trio {
             .join(mat_snp.haplotagged_bams)
             .combine(selectCandidates_trio.out.candidate_bed.transpose(), by:0)
         // Call var bam trio per chunk in candidate bed file
-        callVarBam_trio(gather_bams.combine(ref_channel).combine(checkEnv_trio.out.tmp).combine(clair3_model))
+        callVarBam_trio(gather_bams.combine(ref_channel).combine(checkEnv_trio.out.tmp).combine(clair3_nova_model))
 
         // Mix the calls output to create one channel
         calls = callVarBam_trio.out.proband_calls.mix(callVarBam_trio.out.pat_calls, callVarBam_trio.out.mat_calls)

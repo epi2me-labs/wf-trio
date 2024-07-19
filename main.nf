@@ -12,7 +12,10 @@
 
 import groovy.json.JsonBuilder
 nextflow.enable.dsl = 2
-include { lookup_clair3_model } from './modules/local/wf-human-snp'
+include {
+    lookup_clair3_model;
+    lookup_clair3_nova_model;
+} from './modules/local/wf-human-snp'
 
 include {
     ingress as proband_ingress; ingress as mat_ingress; ingress as pat_ingress;
@@ -205,20 +208,109 @@ workflow {
         params.mat_sample_name,
         "mat"
     )
+    samples = proband.mix(pat, mat)
 
     snp_bed = Channel.fromPath(OPTIONAL_FILE)
     if (params.bed){
         snp_bed = Channel.fromPath(params.bed, checkIfExists: true)
     }
+
+    // Determine basecaller_cfg
+    lookup_table = Channel.fromPath("${projectDir}/data/clair3_models.tsv", checkIfExists: true)
+    // attempt to pull out basecaller_cfg from metadata
+    def observed_pass_bam = 0
+    // Check that basecallers across samples are the same
+    metamap_basecaller_cfg = samples
+        | map { meta, bam, bai, stats ->
+            observed_pass_bam++ // keep count of observed BAMs to guard against emitting basecaller_cfg logging later on failed BAM
+            meta["basecall_models"]
+        }
+        | flatten  // squash lists
+    // check returned basecaller list cardinality
+    metamap_basecaller_cfg
+        | unique
+        | count
+        | map { int n_models ->
+            // n_models of 0 may indicate an empty pass_bam_channel, so
+            // we keep a count of observed_pass_bam to determine whether
+            // we should handle basecaller_cfg errors
+            if (n_models == 0 && observed_pass_bam > 0){
+                if (params.override_basecaller_cfg) {
+                    log.warn "No basecaller models found in the input alignment header, falling back to the model provided with --override_basecaller_cfg: ${params.override_basecaller_cfg}"
+                }
+                else {
+                    String input_data_err_msg = '''\
+                    ################################################################################
+                    # INPUT DATA PROBLEM
+                    Your input alignment does not indicate the basecall model in the header and you
+                    did not provide an alternative with --override_basecaller_cfg.
+
+                    wf-trio requires the basecall model in order to automatically select
+                    an appropriate SNP calling model.
+
+                    ## Next steps
+                    You must re-run the workflow specifying the basecaller model with the
+                    --override_basecaller_cfg option.
+                    ################################################################################
+                    '''.stripIndent()
+                    error input_data_err_msg
+                }
+            }
+            else if (n_models > 1){
+                String input_data_err_msg = '''\
+                ################################################################################
+                # INPUT DATA PROBLEM
+                Your input data contains reads basecalled with more than one basecaller model.
+
+                Our workflows automatically select appropriate configuration and models for
+                downstream tools for a given basecaller model. This cannot be done reliably when
+                reads with different basecaller models are mixed in the same data set.
+
+                ## Next steps
+                To use this workflow you must separate your input files, making sure all reads
+                have been basecalled with the same basecaller model.
+                ################################################################################
+                '''.stripIndent()
+                error input_data_err_msg
+            }
+        }
+
+    // use params.override_basecaller_cfg as basecaller_cfg if provided, regardless of what was detected
+    // we'll have exploded by now if we have no idea what the config is
+    if (params.override_basecaller_cfg) {
+        metamap_basecaller_cfg.map {
+            log.info "Detected basecaller_model: ${it}"
+            log.warn "Overriding basecaller_model: ${params.override_basecaller_cfg}"
+        }
+        basecaller_cfg = Channel.of(params.override_basecaller_cfg)
+    }
+    else {
+        basecaller_cfg = metamap_basecaller_cfg
+            | map { log.info "Detected basecaller_model: ${it}"; it }
+            | map { log.info "Using basecaller_model: ${it}"; it }
+            | first  // unpack from list
+    }
+
+
+    // map basecalling model to clair3 model
     if(params.clair3_model_path) {
         log.warn "Overriding Clair3 model with ${params.clair3_model_path}."
         clair3_model = Channel.fromPath(params.clair3_model_path, type: "dir", checkIfExists: true)
     }
     else {
-        // map basecalling model to clair3 model
-        lookup_table = Channel.fromPath("${projectDir}/data/clair3_models.tsv", checkIfExists: true)
-        clair3_model = lookup_clair3_model(lookup_table, params.basecaller_cfg).map {
+        clair3_model = lookup_clair3_model(lookup_table, basecaller_cfg).map {
             log.info "Autoselected Clair3 model: ${it[0]}" // use model name for log message
+            it[1] // then just return the path to match the interface above
+        }
+    }
+    // map basecalling model to clair3 nova model
+    if(params.clair3_nova_model_path) {
+        log.warn "Overriding Clair3 Nova model with ${params.clair3_nova_model_path}."
+        clair3_nova_model = Channel.fromPath(params.clair3_nova_model_path, type: "dir", checkIfExists: true)
+    }
+    else {
+        clair3_nova_model = lookup_clair3_nova_model(lookup_table, basecaller_cfg).map {
+            log.info "Autoselected Clair3 Nova model: ${it[0]}" // use model name for log message
             it[1] // then just return the path to match the interface above
         }
     }
@@ -233,9 +325,11 @@ workflow {
     ped_file = Channel.fromPath(params.pedigree_file, checkIfExists: true)
 
     // Run trio pipeline
-    trio_results = trio(proband, pat, mat, snp_bed, clair3_model, fam_id, gl_conf, ped_file)
+    trio_results = trio(
+        proband, pat, mat, snp_bed,
+        clair3_model, clair3_nova_model,
+        fam_id, gl_conf, ped_file)
     // Get stats are standard report
-    samples = proband.mix(pat, mat)
     pipeline(samples)
     // Output results
     pipeline.out.report.concat(pipeline.out.workflow_params)

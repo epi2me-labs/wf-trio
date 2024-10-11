@@ -15,6 +15,13 @@
             "fa_icon": "fas fa-arrow-right",
             "description": "Parameters for finding and handling input data for analysis.",
             "properties": {
+                "snp": {
+                    "title": "SNP: Small variants",
+                    "type": "boolean",
+                    "description": "Call single nucleotide variants",
+                    "help_text": "If this option is selected, small variant calling will be carried out using Clair3 Nova.",
+                    "default": false
+                },
                 "proband_bam": {
                     "type": "string",
                     "format": "path",
@@ -98,6 +105,18 @@
                         "pedigree_file"
                     ]
                 }
+            ],
+            "anyOf": [
+                {
+                    "required": [
+                        "sv"
+                    ]
+                },
+                {
+                    "required": [
+                        "snp"
+                    ]
+                }
             ]
         },
         "samples": {
@@ -139,6 +158,39 @@
                     "default": "output",
                     "format": "directory-path",
                     "description": "Directory for output of all workflow results."
+                }
+            }
+        },
+        "sv_options": {
+            "title": "Structural variant calling options",
+            "type": "object",
+            "description": "Options specific to the SV-calling subworkflow.",
+            "properties": {
+                "sv": {
+                    "title": "SV: Structural variants",
+                    "type": "boolean",
+                    "description": "Call structural variants.",
+                    "help_text": "If this option is selected, structural variant calling will be carried out using Sniffles2 using the combined multi-sample calling.",
+                    "default": false
+                },
+                "cluster_merge_pos": {
+                    "type": "number",
+                    "default": 150,
+                    "description": "Maximum merging distance for insertions and deletions on the same read and cluster in non-repeat regions.",
+                    "hidden": true
+                },
+                "min_sv_length": {
+                    "type": "number",
+                    "default": 30,
+                    "description": "Minimum structural variant size called by Sniffles2.",
+                    "hidden": true,
+                    "minimum": 30
+                },
+                "sniffles_args": {
+                    "type": "string",
+                    "description": "Additional command line arguments to pass to the Sniffles2 process",
+                    "hidden": true,
+                    "help_text": "The additional command line arguments will be passed directly to Sniffles2; ensure to use the right commands for the version, and from the command line provide them as follows: `--sniffles_args=\"--non-germline\"`."
                 }
             }
         },
@@ -296,6 +348,21 @@
                     "default": 5,
                     "description": "Default gq bin size for merge non-variant block when enabling gvcf option, default: 5.",
                     "hidden": true
+                },
+                "refine_snp_with_sv": {
+                    "type": "boolean",
+                    "default": true,
+                    "hidden": true,
+                    "description": "Refine per-sample SNP calls using calls from the SV subworkflow.",
+                    "help_text": "By default when the SNP and SV subworkflows are both selected, the workflow will use the results of the SV subworkflow to refine the SNP calls. Disabling this option will prevent the use of SV calls in refining low-coverage variant zygosity and variant phase, which can avoid impossible overlaps (e.g. homozygous SNPs falling in a large deletion called by Sniffles)."
+                },
+                "tr_bed": {
+                    "title": "Tandem repeat BED file",
+                    "type": "string",
+                    "format": "file-path",
+                    "hidden": true,
+                    "description": "Input BED file containing tandem repeat annotations for the reference genome.",
+                    "help_text": "Providing a tandem repeat BED can improve calling in repetitive regions."
                 }
             }
         },
@@ -339,6 +406,9 @@
         },
         {
             "$ref": "#/definitions/advanced_options"
+        },
+        {
+            "$ref": "#/definitions/sv_options"
         },
         {
             "$ref": "#/definitions/misc"

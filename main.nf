@@ -15,18 +15,20 @@ nextflow.enable.dsl = 2
 include {
     lookup_clair3_model;
     lookup_clair3_nova_model;
+    refine_with_sv;
 } from './modules/local/wf-human-snp'
-
 include {
     ingress as proband_ingress; ingress as mat_ingress; ingress as pat_ingress;
 } from "./lib/_ingress"
-include {
-    trio
-} from "./subworkflows/wf-trio"
-include {
-    getParams;
-} from './lib/common'
-
+include { snp_trio } from "./subworkflows/wf-trio-snp"
+include { sv_trio } from "./subworkflows/wf-trio-sv"
+include { getParams } from './lib/common'
+include { 
+    publish as publish_snp;
+    publish as publish_sv;
+} from './modules/local/common'
+include { concat_vcfs as concat_refined_snp } from './wf-human-variation/modules/local/common'
+include { prepare_reference } from './wf-human-variation/lib/reference'
 
 OPTIONAL_FILE = file("$projectDir/data/OPTIONAL_FILE")
 
@@ -324,22 +326,83 @@ workflow {
     }
     ped_file = Channel.fromPath(params.pedigree_file, checkIfExists: true)
 
-    // Run trio pipeline
-    trio_results = trio(
-        proband, pat, mat, snp_bed,
-        clair3_model, clair3_nova_model,
-        fam_id, gl_conf, ped_file)
+    // Prepare the reference channel
+    reference = prepare_reference([
+        "input_ref": params.ref,
+        "output_cache": true,
+        "output_mmi": false
+    ])
+    ref = reference.ref
+    ref_index = reference.ref_idx
+    ref_cache = reference.ref_cache
+    // canonical ref to pass around to all processes
+    ref_channel = ref
+    | concat(ref_index)
+    | concat(ref_cache)
+    | flatten
+    | buffer(size: 4)
+
+    // Programmatically define chromosome codes.
+    ArrayList chromosome_codes = []
+    ArrayList chromosomes = [1..22] + ["X", "Y", "M", "MT"]
+    for (N in chromosomes.flatten()){
+        chromosome_codes += ["chr${N}", "${N}"]
+    }
+
+
+    // Run SNP workflow
+    if (params.snp) {
+        trio_snp_results = snp_trio(
+            proband, pat, mat, snp_bed,
+            clair3_model, clair3_nova_model,
+            fam_id, gl_conf, ped_file, ref_channel, exts, chromosome_codes)
+    
+        // Output results
+        snp_results = trio_snp_results.gvcf | map { [it, null] }
+            | concat(trio_snp_results.haplotagged_bam.map{ meta, xam, xai -> [xam, xai]}.flatten().map { [it, null] })
+            | concat(trio_snp_results.multi_vcf  | map { [it, null] })
+            | concat(trio_snp_results.rtg_sum | map { [it, null] }) 
+    }
+    // Run SV workflow
+    if (params.sv) {
+        if (params.snp && params.phase_trio){
+            sv_bams = trio_snp_results.haplotagged_bam
+        } else {
+            sv_bams = samples.map{ meta, bam, bai, stats -> [meta, bam, bai]}
+        }
+        trio_sv_results = sv_trio(sv_bams, snp_bed, ref_channel, ped_file, OPTIONAL_FILE, chromosome_codes)
+        trio_sv_results.trio_sv_vcf | map { [it, null] }
+        | concat(trio_sv_results.compressed_vcf.flatMap{ meta, vcf, tbi -> [vcf, tbi]} | map { [it, null]})
+        | concat(trio_sv_results.rtg | map { [it, null] })| publish_sv
+    }
+
+    // Refine SNP with SV if required - Per individual not family
+    if (params.snp){
+        if (params.refine_snp_with_sv && params.sv){
+        // Create tuple to ensure process runs per contig and per sample
+        // snp_vcf, contig, bams (phased if available), sv_vcfs
+       refine_with_sv_tuple = trio_snp_results.snp_vcf
+                    | combine(trio_snp_results.contigs)
+                    | combine(sv_bams, by: 0)
+                    | combine(trio_sv_results.sv_unmerged, by:0)
+       refined_snps = refine_with_sv(ref_channel.collect(), refine_with_sv_tuple, "wf_trio_snp")
+       final_snp_vcf = concat_refined_snp(
+                refined_snps.map{ meta, vcf, tbi -> [meta, vcf]}.groupTuple(),
+                "wf_trio_snp"
+            )
+        } else {
+            final_snp_vcf = trio_snp_results.snp_vcf
+        }
+        snp_results 
+        | concat(final_snp_vcf.flatMap{ meta, vcf, tbi -> [vcf, tbi]}.map{ [it, null] }) 
+        | publish_snp
+    }
+
     // Get stats are standard report
     pipeline(samples)
     // Output results
     pipeline.out.report.concat(pipeline.out.workflow_params)
     | map { [it, null] }
-    | concat(trio_results.vcf | map { [it, null] })
-    | concat(trio_results.gvcf | map { [it, null] })
-    | concat(trio_results.phased_vcf | map { [it, null] })
-    | concat(trio_results.haplotagged_bam  | map { [it, null] })
-    | concat(trio_results.multi_vcf  | map { [it, null] })
-    | concat(trio_results.rtg_sum | map { [it, null] })
     | publish
 }
 

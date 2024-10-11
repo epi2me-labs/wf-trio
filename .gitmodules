@@ -1,0 +1,3 @@
+[submodule "wf-human-variation"]
+	path = wf-human-variation
+	url = https://git.oxfordnanolabs.local/epi2melabs/workflows/wf-human-variation.git

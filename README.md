@@ -49,7 +49,7 @@ therefore Nextflow will need to be
 installed before attempting to run the workflow.
 
 The workflow can currently be run using either
-[Docker](https://www.docker.com/products/docker-desktop
+[Docker](https://www.docker.com/products/docker-desktop)
 or [Singularity](https://docs.sylabs.io/guides/3.0/user-guide/index.html)
 to provide isolation of the required software.
 Both methods are automated out-of-the-box provided
@@ -144,6 +144,7 @@ input_reads.fastq   ─── input_directory  ─── input_directory
 
 | Nextflow parameter name  | Type | Description | Help | Default |
 |--------------------------|------|-------------|------|---------|
+| snp | boolean | Call single nucleotide variants | If this option is selected, small variant calling will be carried out using Clair3 Nova. | False |
 | proband_bam | string | Proband aligned BAM to use in the analysis. | This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files for a single sample. |  |
 | pat_bam | string | Paternal aligned BAM files to use in the analysis. | This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files for a single sample. |  |
 | mat_bam | string | Maternal aligned BAM files to use in the analysis. | This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files for a single sample. |  |
@@ -168,6 +169,13 @@ input_reads.fastq   ─── input_directory  ─── input_directory
 | Nextflow parameter name  | Type | Description | Help | Default |
 |--------------------------|------|-------------|------|---------|
 | out_dir | string | Directory for output of all workflow results. |  | output |
+
+
+### Structural variant calling options
+
+| Nextflow parameter name  | Type | Description | Help | Default |
+|--------------------------|------|-------------|------|---------|
+| sv | boolean | Call structural variants. | If this option is selected, structural variant calling will be carried out using Sniffles2 using the combined multi-sample calling. | False |
 
 
 ### Advanced Options

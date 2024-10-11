@@ -94,7 +94,7 @@ process selectCandidates_trio {
     script:
     // Question for Clair3 devs: Why are pct full and var pctfull hard coded in the trio script? Is this a mistake?
     """
-    mkdir candidate_bed
+    mkdir -p candidate_bed
     pypy \$CLAIR3_NOVA_PATH/clair3.py SelectCandidates_Trio \
     --alt_fn_c proband_sample.vcf.gz \
     --alt_fn_p1 pat_sample.vcf.gz \
@@ -362,7 +362,7 @@ process cat_haplotagged_contigs {
             path(ref), path(ref_idx), path(ref_cache), env(REF_PATH) // intermediate input always BAM here
         tuple val(xam_fmt), val(xai_fmt) // currently always .bam, .bai. But will add .cram, crai in a future release
     output:
-        tuple path("${meta.alias}.haplotagged.${xam_fmt}"), path("${meta.alias}.haplotagged.${xam_fmt}.${xai_fmt}"), emit: merged_xam
+        tuple val(meta), path("${meta.alias}.haplotagged.${xam_fmt}"), path("${meta.alias}.haplotagged.${xam_fmt}.${xai_fmt}"), emit: merged_xam
     script:
     def threads = task.cpus - 1
     """
@@ -448,24 +448,3 @@ process glnexus {
     """
 }
 
-
-process rtgTools {
-    cpus 4
-    memory 16.GB
-    label "wftrio"
-    input:
-       tuple val(family_id), path("joint_vcf.vcf.gz"), path("joint_vcf.vcf.gz.tbi")
-       path(ref_file)
-       path(ped_file)
-    output:
-       tuple val(family_id), path("*_RTGannot.txt"), emit: summary
-    script:
-    """
-    rtg RTG_MEM=16G format -o reference.sdf $ref_file
-
-    rtg RTG_MEM=15G mendelian -i "joint_vcf.vcf.gz" -o RTGannot.vcf.gz \
-     --pedigree=${ped_file} \
-     -t reference.sdf | tee ${family_id}_RTGannot.txt
-
-    """
-}

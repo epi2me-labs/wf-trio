@@ -1,0 +1,129 @@
+// Trio SV
+
+// Multi-sample SV calling
+process sniffles2_joint {
+    cpus 4
+    memory 6.GB
+    label "wf_human_sv"
+    input:
+        tuple val(joint_prefix), path("snfs/*")
+        tuple path(ref), path(ref_idx), path(ref_cache), env(REF_PATH)
+        val(suffix) // Extra label to add to the output files
+    output:
+        tuple val(joint_meta), path("${joint_prefix}.${suffix}.vcf"), emit: vcf
+    script:
+        // Perform internal phasing only if snp not requested; otherwise, use joint phasing.
+        def phase = params.phased ? "--phase" : ""
+        def min_sv_len = params.min_sv_length ? "--minsvlen ${params.min_sv_length}" : ""
+        def sniffles_args = params.sniffles_args ?: ''
+        // Set family ID as alias some compatible with hum-var-sv downstream processes
+        joint_meta = ['alias': joint_prefix]
+    """
+    sniffles \
+        --threads $task.cpus \
+          ${min_sv_len} \
+        --input snfs/* \
+        --vcf "${joint_prefix}.trio.sv.tmp.vcf" \
+        --reference $ref \
+        $phase \
+        $sniffles_args
+    bcftools view -U -O v "${joint_prefix}.trio.sv.tmp.vcf" > "${joint_prefix}.${suffix}.vcf"
+    """
+}
+
+// TO DO: Update wf-hum-var sniffles2 to accept tuple for multisample
+// NOTE VCF entries for alleles with no support are removed to prevent them from
+//      breaking downstream parsers that do not expect them
+// --input-exclude-flags 2308: Remove unmapped (4), non-primary (256) and supplemental (2048) alignments
+process sniffles2 {
+    label "wf_human_sv"
+    cpus 4
+    memory 6.GB
+    input:
+        tuple path(xam), path(xam_idx), val(xam_meta),
+            path(tr_bed),
+            path(ref), path(ref_idx), path(ref_cache), env(REF_PATH)
+        val suffix // Extra label to add to the output files
+    output:
+        tuple val(xam_meta), path("${xam_meta.alias}.${suffix}.tmp.vcf"), emit: vcf
+        tuple val(xam_meta), path("${xam_meta.alias}.${suffix}.vcf.gz"), path("${xam_meta.alias}.${suffix}.vcf.gz.tbi"), emit: compressed
+        tuple val(xam_meta), path("${xam_meta.alias}.${suffix}.snf"), emit: snf
+    publishDir \
+        path: "${params.out_dir}",
+        pattern:  "${xam_meta.alias}.${suffix}.snf",
+        mode: 'copy'
+    script:
+        def tr_arg = ""
+        if (tr_bed.name != 'OPTIONAL_FILE'){
+            tr_arg = "--tandem-repeats ${tr_bed}"
+        }
+        def sniffles_args = params.sniffles_args ?: ''
+        def min_sv_len = params.min_sv_length ? "--minsvlen ${params.min_sv_length}" : ""
+        // Perform internal phasing only if snp not requested; otherwise, use joint phasing.
+        def phase = params.phased ? "--phase" : ""
+    """
+    sniffles \
+        --threads $task.cpus \
+        --sample-id ${xam_meta.alias} \
+        --output-rnames \
+        ${min_sv_len} \
+        --cluster-merge-pos $params.cluster_merge_pos \
+        --input $xam \
+        --reference $ref \
+        --input-exclude-flags 2308 \
+        --snf "${xam_meta.alias}.${suffix}.snf" \
+        $tr_arg \
+        $sniffles_args \
+        $phase \
+        --vcf "${xam_meta.alias}.sniffles.vcf"
+    # After running sniffles filter out uncalled and bgzip and index for individual vcfs
+    # unfiltered version required for refine snp with sv process
+    bcftools view --exclude-uncalled --output-type v "${xam_meta.alias}.sniffles.vcf" > "${xam_meta.alias}.${suffix}.tmp.vcf"
+    cp "${xam_meta.alias}.${suffix}.tmp.vcf" "${xam_meta.alias}.${suffix}.vcf"
+    bgzip "${xam_meta.alias}.${suffix}.vcf" 
+    tabix --force --preset vcf "${xam_meta.alias}.${suffix}.vcf.gz"
+    """
+}
+
+
+// TO DO: Update this in humvar to accept suffix
+// NOTE This is the last touch the VCF has as part of the workflow,
+//  we'll rename it with its desired output name here
+process sortVCF {
+    label "wf_human_sv"
+    cpus 2
+    memory 4.GB
+    input:
+        tuple val(xam_meta), path(vcf)
+        val suffix
+    output:
+        tuple val(xam_meta), path("${xam_meta.alias}.${suffix}.vcf.gz"), emit: vcf_gz
+        tuple val(xam_meta), path("${xam_meta.alias}.${suffix}.vcf.gz.tbi"), emit: vcf_tbi
+    script:
+    """
+    bcftools sort -m 2G -T ./ -O z $vcf > "${xam_meta.alias}.${suffix}.vcf.gz"
+    tabix -p vcf "${xam_meta.alias}.${suffix}.vcf.gz"
+    """
+}
+
+// Run on individual VCF and joint VCF as that is made from SNFS which have not been filtered
+process filterCalls {
+    label "wf_human_sv"
+    cpus 4
+    memory 4.GB
+    input:
+        tuple val(xam_meta), path("filter_calls.vcf.gz"), path("filter_calls.vcf.gz.tbi"), path("input.bed")
+        val(chromosome_codes)
+        val suffix
+    output:
+        tuple val(xam_meta), path("${xam_meta.alias}.${suffix}.vcf.gz"), path("${xam_meta.alias}.${suffix}.vcf.gz.tbi"), emit: vcf
+    script:
+    String ctgs = chromosome_codes.join(',')
+    def ctgs_filter = params.include_all_ctgs ? "" : "-r ${ctgs}"
+    String bed = params.bed ? "-T input.bed  --targets-overlap 1" : ""
+    """
+    bcftools view --threads ${task.cpus} ${ctgs_filter} ${bed} "filter_calls.vcf.gz" > "${xam_meta.alias}.${suffix}.vcf"
+    bgzip "${xam_meta.alias}.${suffix}.vcf"
+    tabix -p vcf "${xam_meta.alias}.${suffix}.vcf.gz"
+    """
+}

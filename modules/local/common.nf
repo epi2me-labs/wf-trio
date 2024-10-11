@@ -477,13 +477,14 @@ process concat_vcfs {
     memory 3.GB
     input:
         tuple val(prefix), path (vcfs_artifacts, stageAs: "vcfs/*")
+        val(suffix) // Extra label to add to the output files
     output:
-        tuple val(prefix), path ("${prefix}.vcf.gz"), path("${prefix}.vcf.gz.tbi"), emit: final_vcf
+        tuple val(prefix), path ("${prefix}.${suffix}.vcf.gz"), path("${prefix}.${suffix}.vcf.gz.tbi"), emit: final_vcf
     script:
         def concat_threads = Math.max(task.cpus - 1, 1)
         """
-        bcftools concat --threads ${concat_threads} -O u vcfs/*.vcf.gz | bcftools sort -O z - > ${prefix}.vcf.gz
-        tabix -p vcf ${prefix}.vcf.gz
+        bcftools concat --threads ${concat_threads} -O u vcfs/*.vcf.gz | bcftools sort -O z - > "${prefix}.${suffix}.vcf.gz"
+        tabix -p vcf "${prefix}.${suffix}.vcf.gz"
         """
 }
 
@@ -539,3 +540,41 @@ process sanitise_bed {
         """
 }
 
+// Process checks a multi-sample VCF file for variant calls which do not follow Mendelian
+// inheritance
+process rtgTools {
+    cpus 4
+    memory 16.GB
+    label "wftrio"
+    input:
+       tuple val(xam_meta), path("joint_vcf.vcf.gz"), path("joint_vcf.vcf.gz.tbi")
+       tuple path(ref_file), path(ref_idx), path(ref_cache), env(REF_PATH)
+       path(ped_file)
+       val(suffix) // Extra label to add to the output files
+    output:
+       tuple val(xam_meta), path("*_RTGannot.txt"), emit: summary
+    script:
+    """
+    rtg RTG_MEM=15G format -o reference.sdf $ref_file
+    rtg RTG_MEM=15G mendelian -i "joint_vcf.vcf.gz" -o RTGannot.vcf.gz \
+     --pedigree=${ped_file} \
+     -t reference.sdf | tee "${params.family_id}.${suffix}_RTGannot.txt"
+    """
+}
+
+
+process publish {
+    // publish inputs to output directory
+    label "wf_common"
+    publishDir (
+        params.out_dir,
+        mode: "copy",
+        saveAs: { dirname ? "$dirname/$fname" : fname }
+    )
+    input:
+        tuple path(fname), val(dirname)
+    output:
+        path fname
+    """
+    """
+}

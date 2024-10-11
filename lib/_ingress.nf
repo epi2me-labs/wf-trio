@@ -151,7 +151,7 @@ workflow ingress {
                 [meta,xam, xai, stats ]
             }
         
-        samples_with_relationship = bam_channel.map{ meta, xam, xai, stats -> [meta + [relationship: relationship], xam, xai, stats]}   
+        samples_with_relationship = bam_channel.map{ meta, xam, xai, stats -> [meta + [relationship: relationship, family_id:params.family_id], xam, xai, stats]}   
         reheadered_samples =  reheader_BAM(samples_with_relationship)
 
     emit:

@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `--override_basecaller_cfg` parameter allows users to provide a basecall configuration name in cases where automatic basecall model detection fails.
 - Error message if more than one basecaller is found across the samples.
+- Structural variant calling in trio using `Sniffles2`.
+- `--sv` parameter to enable structural variant calling (default: false).
+- `--snp` parameter to enable SNP calling with Clair3-Nova (default: false).
+### Changed
+- Update clair3-nova v0.3.0 to v0.3.1 
 
 ## [v0.0.2]
 ### Fixed

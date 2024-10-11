@@ -11,14 +11,12 @@ include {
     cat_haplotagged_contigs;
     checkEnv_trio;
     glnexus;
-    rtgTools;
     sortgvcf_Trio_contig;
-} from '../modules/local/wf-trio'
+} from '../modules/local/wf-trio-snp'
 
 include {
-    index_ref_fai;
-    cram_cache;
     concat_vcfs;
+    rtgTools;
 } from '../modules/local/common'
 
 include {
@@ -27,7 +25,7 @@ include {
 
 OPTIONAL_FILE = "$projectDir/data/OPTIONAL_FILE"
 // workflow module
-workflow trio {
+workflow snp_trio {
     take:
         proband_bam
         pat_bam
@@ -38,34 +36,18 @@ workflow trio {
         fam_id
         gl_conf
         ped_file
+        ref_channel
+        extensions
+        chromosome_codes
 
     main:
-
-        // To do: Add cram handling and CI test
-        extensions = ['bam', 'bai']
         
-        // Programmatically define chromosome codes.
-        ArrayList chromosome_codes = []
-        ArrayList chromosomes = [1..22] + ["X", "Y", "M", "MT"]
-        for (N in chromosomes.flatten()){
-            chromosome_codes += ["chr${N}", "${N}"]
-        }
+        
 
         // Prepare bams required for snp calling
         proband_sample = proband_bam.map{ meta, bam, bai, stats -> [meta, bam, bai]}
         pat_sample = pat_bam.map{ meta, bam, bai, stats -> [meta, bam, bai]}
         mat_sample = mat_bam.map{ meta, bam, bai, stats -> [meta, bam, bai]}
-
-        // Prepare the reference channel
-        ref = Channel.fromPath(params.ref, checkIfExists: true)
-        index_ref = index_ref_fai(ref)
-        ref_index = index_ref.reference_index
-        // Build ref cache for CRAM steps that do not take a reference
-        cram_cache(ref)
-        ref_cache = cram_cache.out.ref_cache
-        ref_path = cram_cache.out.ref_path
-        // canonical ref and BAM channels to pass around to all processes
-        ref_channel = ref.concat(ref_index).concat(ref_cache).concat(ref_path).buffer(size: 4)
 
         // Check Env - Clair3 trio version
         // to get contigs and tmp folder
@@ -129,11 +111,6 @@ workflow trio {
         grouped_vcf = mergeVcf_Trio.out.merged_vcf
             .map{ meta, contig, vcf -> [meta, vcf]}
             .groupTuple()
-
-        sortmergedVcf_Trio(
-            grouped_vcf
-            .combine(ref_channel)
-            .combine(checkEnv_trio.out.tmp))
          
         mergeVcf_Trio.out.merged_gvcf
             | map{ meta, contig, vcf -> [meta, vcf]}
@@ -156,15 +133,19 @@ workflow trio {
             grouped_phased_trio | combine(ref_channel) | combine(checkEnv_trio.out.tmp) | sortphased_Trio
             phase_trio.out.phased | combine(bams_to_phase, by:0) | combine(ref_channel) | haplotag_trio
             cat_haplotagged_contigs(haplotag_trio.out.haplotag_bam.groupTuple().combine(ref_channel), extensions)
-            hap_bam = cat_haplotagged_contigs.out.merged_xam.flatten()
-            phased_vcfs = sortphased_Trio.out.final_vcf.flatMap{ meta, vcf, tbi -> [vcf, tbi]}
+            hap_bam = cat_haplotagged_contigs.out.merged_xam
+            phased_vcfs = sortphased_Trio.out.final_vcf
+            snp_vcfs = phased_vcfs
         } else {
-            hap_bam = Channel.empty()
-            phased_vcfs = Channel.empty()
+            sortmergedVcf_Trio(
+                grouped_vcf
+                .combine(ref_channel)
+                .combine(checkEnv_trio.out.tmp))
+                hap_bam = Channel.empty()
+            snp_vcfs = sortmergedVcf_Trio.out.sorted_trio
         }
 
         // Prepare outputs
-        vcfs = sortmergedVcf_Trio.out.sorted_trio.flatMap{ meta, vcf, tbi -> [vcf, tbi] }
         gvcfs = sortmergedGVcf_Trio.out.sorted_trio.flatMap{ meta, vcf, tbi -> [vcf, tbi] }
 
 
@@ -196,23 +177,20 @@ workflow trio {
             | combine(fam_id)
             | combine(gl_conf)
         )
-        merged_sorted_vcf = gln | groupTuple | concat_vcfs
-        // RTG tools on final vcf to checks a multi-sample VCF file for variant calls which do not follow Mendelian
-        //inheritance, and compute aggregate sample concordance
-        rtg = rtgTools(merged_sorted_vcf.final_vcf, ref, ped_file)
+        merged_sorted_vcf = concat_vcfs(gln.groupTuple(), "wf_trio_snp") 
+        // RTG tools used on final multi-sample VCF to check for variant calls which do not follow Mendelian
+        //inheritance. Compute aggregate sample concordance.
+        rtg = rtgTools(merged_sorted_vcf.final_vcf, ref_channel, ped_file, "wf_trio_snp")
 
         // Prepare outputs
         rtg_summary = rtg.summary.map{ family_name, sum -> sum }
         gl_vcf = merged_sorted_vcf.final_vcf.flatMap{ family_name, vcf, tbi -> [vcf, tbi]}
 
     emit:
-        vcf = vcfs
+        snp_vcf = snp_vcfs
         gvcf = gvcfs
-        phased_vcf = phased_vcfs
-        haplotagged_bam = hap_bam
-        phased_vcf = phased_vcfs
         haplotagged_bam = hap_bam
         multi_vcf = gl_vcf
         rtg_sum = rtg_summary
-
+        contigs = contigs
 }

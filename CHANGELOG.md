@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--snp` parameter to enable SNP calling with Clair3-Nova (default: false).
 ### Changed
 - Update clair3-nova v0.3.0 to v0.3.1 
+- Reconcile template with v5.3.1
 
 ## [v0.0.2]
 ### Fixed

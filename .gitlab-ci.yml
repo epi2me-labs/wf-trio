@@ -36,8 +36,7 @@ docker-run:
     tags: [] # no need for big ram
     parallel:
         matrix:
-            - MATRIX_NAME: [ "trio", "trio-without-bed",
-             "snp-only", "sv-only", "no_refine_with_sv"]
+            - MATRIX_NAME: [ "trio", "trio-without-bed", "snp-only", "sv-only", "no-phasing" ]
     rules:
         - if: ($CI_COMMIT_BRANCH == null || $CI_COMMIT_BRANCH == "dev-template")
           when: never
@@ -91,7 +90,7 @@ docker-run:
               --family_id Ashkenazi \
               --pedigree_file wf-trio/data/wf-trio-test-automodel/ped_file.tsv --snp false \
               --sv"
-        - if: $MATRIX_NAME == "no_refine_with_sv"
+        - if: $MATRIX_NAME == "no-phasing"
           variables:
               NF_BEFORE_SCRIPT: mkdir -p ${CI_PROJECT_NAME}/data/ && wget -O ${CI_PROJECT_NAME}/data/wf-trio-test-automodel.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-trio/wf-trio-test-automodel.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/wf-trio-test-automodel.tar.gz -C ${CI_PROJECT_NAME}/data/
               NF_WORKFLOW_OPTS: "-executor.\\$$local.memory 16GB \
@@ -103,5 +102,4 @@ docker-run:
               --family_id Ashkenazi \
               --bed  wf-trio/data/wf-trio-test-automodel/Ashkenazi_test_TP.bed \
               --pedigree_file wf-trio/data/wf-trio-test-automodel/ped_file.tsv \
-              --refine_snp_with_sv false \
-              --snp --sv"
+              --snp --phased false"

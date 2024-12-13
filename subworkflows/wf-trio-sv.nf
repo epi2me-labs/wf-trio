@@ -26,6 +26,7 @@ workflow sv_trio {
             meta, xam, xai -> [xam, xai, meta] 
         }
         suffix = "wf_trio_sv"
+        
         // tandem repeat BED
         if(params.tr_bed) {
             tr_bed = Channel.fromPath(params.tr_bed, checkIfExists: true)
@@ -46,9 +47,9 @@ workflow sv_trio {
         compressed_vcf = filterCalls(snfs.compressed.combine(snp_bed), chromosome_codes, suffix)
         // Checks multi-sample VCF file for variant calls which do not follow Mendelian inheritance
         rtg = rtgTools(filteredCalls, ref_channel, ped_file, suffix)
-        rtg_summary = rtg.summary.map{ family_name, sum -> sum }
+        rtg_summary_txt = rtg.summary.map{ family_name, sum -> sum }
 emit:
-    rtg = rtg_summary
+    rtg_summary = rtg_summary_txt
     sv_unmerged = snfs.vcf
     trio_sv_vcf = final_sv_vcf
     compressed_vcf = compressed_vcf

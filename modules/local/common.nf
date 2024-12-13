@@ -75,7 +75,7 @@ process mosdepth {
     cpus 2
     memory {4.GB * task.attempt}
     maxRetries 2
-    errorStrategy = {task.exitStatus in [137,140] ? 'retry' : 'finish'}
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple path(xam), path(xam_idx), val(xam_meta)
         file target_bed
@@ -383,19 +383,6 @@ process getVersions {
 }
 
 
-process getParams {
-    cpus 1
-    output:
-        path "params.json"
-    script:
-        def paramsJSON = new JsonBuilder(params).toPrettyString()
-        """
-        # Output nextflow params object to JSON
-        echo '$paramsJSON' > params.json
-        """
-}
-
-
 process annotate_vcf {
     // use SnpEff to generate basic functional annotations,
     // followed by SnpSift annotate to add ClinVar annotations
@@ -539,6 +526,7 @@ process sanitise_bed {
         sanitise_bed.py --ref ${ref} --bed ${bed} --bed_out ${bed.baseName}.sanitised.bed
         """
 }
+
 
 // Process checks a multi-sample VCF file for variant calls which do not follow Mendelian
 // inheritance

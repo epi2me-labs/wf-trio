@@ -5,13 +5,15 @@ include {
     mergeVcf_Trio;
     sortmergedVcf_Trio;
     sortmergedGVcf_Trio;
-    phase_trio;
-    sortphased_Trio;
-    haplotag_trio;
-    cat_haplotagged_contigs;
+    phase_joint_trio;
+    sortphased_Trio as sortJointPhased_Trio;
+    haplotag_trio as haplotagJoint_Trio;
+    filter_joint;
+    cat_haplotagged_contigs as catJoint_haplotagged_contigs;
     checkEnv_trio;
     glnexus;
     sortgvcf_Trio_contig;
+    merge_individual_vcfs;
 } from '../modules/local/wf-trio-snp'
 
 include {
@@ -22,6 +24,10 @@ include {
 include {
     snp as snp_proband; snp as snp_mat; snp as snp_pat;
 } from "../subworkflows/wf-human-snp"
+
+include {
+    concat_vcfs as concat_snp_vcfs;
+} from "../wf-human-variation/modules/local/common"
 
 OPTIONAL_FILE = "$projectDir/data/OPTIONAL_FILE"
 // workflow module
@@ -119,35 +125,15 @@ workflow snp_trio {
             | combine(checkEnv_trio.out.tmp)
             | sortmergedGVcf_Trio
 
-        // Create tuples to name bams, for combining with matching vcfs for phasing
-        pat_bam_named = pat_bam.map{ meta, bam, bai, stats -> [meta, bam, bai]}
-        mat_bam_named = mat_bam.map{ meta, bam, bai, stats -> [meta, bam, bai]}
-        proband_bam_named = proband_bam.map{ meta, bam, bai, stats -> [meta, bam, bai]}
-
-        // Phasing
-        // TODO parameterise
-        if (params.phase_trio){
-            bams_to_phase = pat_bam_named.mix(mat_bam_named, proband_bam_named)
-            mergeVcf_Trio.out.merged_vcf | combine(bams_to_phase, by:0) | combine(ref_channel) | phase_trio
-            grouped_phased_trio = phase_trio.out.phased.map{ meta, contig, vcf -> [meta, vcf]}.groupTuple()
-            grouped_phased_trio | combine(ref_channel) | combine(checkEnv_trio.out.tmp) | sortphased_Trio
-            phase_trio.out.phased | combine(bams_to_phase, by:0) | combine(ref_channel) | haplotag_trio
-            cat_haplotagged_contigs(haplotag_trio.out.haplotag_bam.groupTuple().combine(ref_channel), extensions)
-            hap_bam = cat_haplotagged_contigs.out.merged_xam
-            phased_vcfs = sortphased_Trio.out.final_vcf
-            snp_vcfs = phased_vcfs
-        } else {
-            sortmergedVcf_Trio(
+        sortmergedVcf_Trio(
                 grouped_vcf
                 .combine(ref_channel)
                 .combine(checkEnv_trio.out.tmp))
                 hap_bam = Channel.empty()
-            snp_vcfs = sortmergedVcf_Trio.out.sorted_trio
-        }
 
         // Prepare outputs
+        snp_vcfs = sortmergedVcf_Trio.out.sorted_trio
         gvcfs = sortmergedGVcf_Trio.out.sorted_trio.flatMap{ meta, vcf, tbi -> [vcf, tbi] }
-
 
         // Prepare per contig VCFS for GLNEXUS
         //sort gvcfs per contig
@@ -170,27 +156,81 @@ workflow snp_trio {
         proband_contig_vcf = mergeVcf_Trio.out.merged_vcf.filter { meta, vcf, tbi ->
             meta.alias == "${params.proband_sample_name}"}.map{ meta, contig, vcf -> [contig, vcf]}
         
-        // Run Glnexus for joint variant calling - considering all of the trio simultaniously 
+        // Run Glnexus for joint variant calling per contig - considering all of the trio simultaniously 
         gln = glnexus(
             grouped_gvcf_per_contig
             | join(proband_contig_vcf)
             | combine(fam_id)
             | combine(gl_conf)
         )
-        merged_sorted_vcf = concat_vcfs(gln.groupTuple(), "wf_trio_snp") 
+        // Concat per contig joint vcfs
+        merged_sorted_vcf = concat_vcfs(gln.map{ family_id, contig, vcf, tbi -> [family_id, vcf]}.groupTuple(), "wf_trio_snp") 
         // RTG tools used on final multi-sample VCF to check for variant calls which do not follow Mendelian
         //inheritance. Compute aggregate sample concordance.
         rtg = rtgTools(merged_sorted_vcf.final_vcf, ref_channel, ped_file, "wf_trio_snp")
 
         // Prepare outputs
-        rtg_summary = rtg.summary.map{ family_name, sum -> sum }
+        rtg_summary_txt = rtg.summary.map{ family_name, sum -> sum }
         gl_vcf = merged_sorted_vcf.final_vcf.flatMap{ family_name, vcf, tbi -> [vcf, tbi]}
 
+        // Trio phasing (pedigree joint phasing)
+        if (params.phased){
+            // Create tuples to name bams, for combining with matching vcfs for phasing
+            proband_bam_named = proband_bam.map{ meta, bam, bai, stats -> [meta, bam, bai]}
+            pat_bam_named = pat_bam.map{ meta, bam, bai, stats -> [meta, bam, bai]}
+            mat_bam_named = mat_bam.map{ meta, bam, bai, stats -> [meta, bam, bai]}
+     
+            // Joint pedigree phased
+            phase_trio_tuple = glnexus.out.gl_vcf
+                    | combine(proband_bam_named)
+                    | combine(pat_bam_named)
+                    | combine(mat_bam_named)
+                    | combine(ref_channel)
+                    | combine(ped_file)
+            phase_trio_out = phase_joint_trio(phase_trio_tuple)
+        
+            // Filter joint phased to individual VCFs per contig
+            // Order does not matter here 
+            bams_to_phase = proband_bam_named
+                    | mix(pat_bam_named, mat_bam_named)
+            
+            // Use phased joint individual VCF's to haplotag bam per contig and haplotagphase
+            haplotagJoint_Trio(bams_to_phase
+                    | combine(phase_trio_out.joint_phased)
+                    | combine(ref_channel))
+     
+            // Get haplotagphase vcf with phase information added to indels based on haplotagged reads.
+            haplotag_phased = haplotagJoint_Trio.out.haplotag_phased_vcf
+
+            // Sort and combine contigs back together
+            sortJointPhased_Trio = concat_snp_vcfs(haplotag_phased.groupTuple(), "wf_trio_snp")
+
+            // Merge back to joint VCF
+            merge_individual_vcfs(
+                params.family_id,
+                sortJointPhased_Trio.final_vcf.map{ meta, vcf, tbi -> [vcf, tbi]}.collect())
+           
+            // Join per contig bam
+            catJoint_haplotagged_contigs(
+                haplotagJoint_Trio.out.haplotag_bam.map{contig, meta, bam, bai -> [meta, bam]}
+                | groupTuple()
+                | combine(ref_channel),
+                extensions)
+
+            // Get final xam and joint vcf
+            trio_hap_bam = catJoint_haplotagged_contigs.out.merged_xam
+            vcf_joint = merge_individual_vcfs.out
+
+        } else {
+            // If no phasing then just output joint vcf
+            vcf_joint = gl_vcf
+            trio_hap_bam = Channel.empty()
+        }
+
     emit:
-        snp_vcf = snp_vcfs
         gvcf = gvcfs
-        haplotagged_bam = hap_bam
-        multi_vcf = gl_vcf
-        rtg_sum = rtg_summary
+        haplotagged_bam = trio_hap_bam
+        rtg_summary = rtg_summary_txt
         contigs = contigs
+        joint_vcf = vcf_joint
 }

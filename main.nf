@@ -15,7 +15,6 @@ nextflow.enable.dsl = 2
 include {
     lookup_clair3_model;
     lookup_clair3_nova_model;
-    refine_with_sv;
 } from './modules/local/wf-human-snp'
 include {
     ingress as proband_ingress; ingress as mat_ingress; ingress as pat_ingress;
@@ -351,7 +350,8 @@ workflow {
 
 
     // Run SNP workflow
-    if (params.snp) {
+    Boolean run_snp = params.snp || (params.sv && params.phased)
+    if (run_snp) {
         trio_snp_results = snp_trio(
             proband, pat, mat, snp_bed,
             clair3_model, clair3_nova_model,
@@ -360,12 +360,13 @@ workflow {
         // Output results
         snp_results = trio_snp_results.gvcf | map { [it, null] }
             | concat(trio_snp_results.haplotagged_bam.map{ meta, xam, xai -> [xam, xai]}.flatten().map { [it, null] })
-            | concat(trio_snp_results.multi_vcf  | map { [it, null] })
-            | concat(trio_snp_results.rtg_sum | map { [it, null] }) 
+            | concat(trio_snp_results.rtg_summary | map { [it, null] })  
+            | concat(trio_snp_results.joint_vcf.flatten().map{ [it, null] }) 
+        | publish_snp
     }
     // Run SV workflow
     if (params.sv) {
-        if (params.snp && params.phase_trio){
+        if (run_snp){
             sv_bams = trio_snp_results.haplotagged_bam
         } else {
             sv_bams = samples.map{ meta, bam, bai, stats -> [meta, bam, bai]}
@@ -373,29 +374,7 @@ workflow {
         trio_sv_results = sv_trio(sv_bams, snp_bed, ref_channel, ped_file, OPTIONAL_FILE, chromosome_codes)
         trio_sv_results.trio_sv_vcf | map { [it, null] }
         | concat(trio_sv_results.compressed_vcf.flatMap{ meta, vcf, tbi -> [vcf, tbi]} | map { [it, null]})
-        | concat(trio_sv_results.rtg | map { [it, null] })| publish_sv
-    }
-
-    // Refine SNP with SV if required - Per individual not family
-    if (params.snp){
-        if (params.refine_snp_with_sv && params.sv){
-        // Create tuple to ensure process runs per contig and per sample
-        // snp_vcf, contig, bams (phased if available), sv_vcfs
-       refine_with_sv_tuple = trio_snp_results.snp_vcf
-                    | combine(trio_snp_results.contigs)
-                    | combine(sv_bams, by: 0)
-                    | combine(trio_sv_results.sv_unmerged, by:0)
-       refined_snps = refine_with_sv(ref_channel.collect(), refine_with_sv_tuple, "wf_trio_snp")
-       final_snp_vcf = concat_refined_snp(
-                refined_snps.map{ meta, vcf, tbi -> [meta, vcf]}.groupTuple(),
-                "wf_trio_snp"
-            )
-        } else {
-            final_snp_vcf = trio_snp_results.snp_vcf
-        }
-        snp_results 
-        | concat(final_snp_vcf.flatMap{ meta, vcf, tbi -> [vcf, tbi]}.map{ [it, null] }) 
-        | publish_snp
+        | concat(trio_sv_results.rtg_summary | map { [it, null] })| publish_sv
     }
 
     // Get stats are standard report

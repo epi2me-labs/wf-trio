@@ -56,6 +56,7 @@ nextflow run epi2me-labs/wf-trio \
 	--proband_bam 'wf-trio-demo/Ashkenazi_test_TP_data/nf_bam_test_hg002' \
 	--proband_sample_name 'hg002' \
 	--ref 'wf-trio-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta' \
+	--snp --sv --phased \
 	-profile standard
 ```
 

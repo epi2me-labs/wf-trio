@@ -44,4 +44,11 @@ genotyper_config:
           combi_method: missing
           count: 0
           ignore_non_variants: true
-
+        - orig_names: [DNP]
+          name: DNP
+          description: '##FORMAT=<ID=DNP,Number=.,Type=Float,Description="de novo variant probability">'
+          type: float
+          number: basic
+          combi_method: missing
+          count: 1
+          ignore_non_variants: true

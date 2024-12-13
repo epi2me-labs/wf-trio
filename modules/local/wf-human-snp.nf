@@ -73,7 +73,7 @@ process pileup_variants {
     label "clair3nova"
     cpus 1
     memory { 4.GB * task.attempt }
-    errorStrategy = {task.exitStatus in [134,137,140] ? 'retry' : 'finish'}
+    errorStrategy {task.exitStatus in [134,137,140] ? 'retry' : 'finish'}
     maxRetries 1
     input:
         each region
@@ -199,7 +199,7 @@ process phase_contig {
     cpus 4
     memory { phaser_memory[task.attempt - 1] }
     maxRetries 3
-    errorStrategy = {task.exitStatus in [137,140] ? 'retry' : 'finish'}
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     label "clair3nova"
     input:
         tuple val(contig), path("snps.gz"), path("snps.gz.tbi"), val(meta), path(xam), path(xam_idx), path(ref), path(ref_idx), path(ref_cache), env(REF_PATH)
@@ -244,7 +244,7 @@ process post_clair_contig_haplotag {
     // Define memory from phasing tool and number of attempt
     memory { haptag_memory[task.attempt - 1] }
     maxRetries 3
-    errorStrategy = {task.exitStatus in [137,140] ? 'retry' : 'finish'}
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
 
     input:
         tuple val(contig),
@@ -272,7 +272,7 @@ process aggregate_pileup_gvcf {
     maxRetries 3
     cpus 4
     memory { 8.GB * task.attempt }
-    errorStrategy = {task.exitStatus in [137,140] ? 'retry' : 'finish'}
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
         tuple path(ref), path(ref_idx), path(ref_cache), env(REF_PATH)
         path "merge_outputs_gvcf/*"
@@ -331,36 +331,4 @@ process lookup_clair3_nova_model {
     echo "Basecall model: !{basecall_model}"
     echo "Clair3 nova model  : ${clair3_nova_model}"
     '''
-}
-
-
-// TODO: Update this process in wf-hum-var to accept tuple for multisample
-process refine_with_sv {
-    label "wf_human_snp"
-    cpus 4
-    memory { 8.GB * task.attempt - 1.GB }
-    maxRetries 1
-    errorStrategy = {task.exitStatus in [137,140] ? 'retry' : 'finish'}
-    input:
-        tuple path(ref), path(ref_idx), path(ref_cache), env(REF_PATH) 
-        tuple val(xam_meta),
-            path(clair_vcf, stageAs: 'clair.vcf.gz'),
-            path(clair_tbi, stageAs: 'clair.vcf.gz.tbi'),
-            val(contig),
-            path(xam),
-            path(xai),
-            path(sniffles_vcf) 
-        val(suffix)
-    output:
-        tuple val(xam_meta), path("${xam_meta.alias}.${contig}.${suffix}.vcf.gz"), path("${xam_meta.alias}.${contig}.${suffix}.vcf.gz.tbi"), emit: vcf
-    shell:
-        '''
-        pypy $(which clair3.py) SwitchZygosityBasedOnSVCalls \\
-            --bam_fn !{xam} \\
-            --clair3_vcf_input clair.vcf.gz \\
-            --sv_vcf_input "!{sniffles_vcf}" \\
-            --vcf_output "!{xam_meta.alias}.!{contig}.!{suffix}.vcf" \\
-            --threads !{task.cpus} \\
-            --ctg_name "!{contig}"
-        '''
 }

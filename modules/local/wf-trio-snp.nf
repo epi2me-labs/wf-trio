@@ -114,7 +114,7 @@ process callVarBam_trio {
     label "clair3nova"
     cpus 1
     memory { 4.GB * task.attempt }
-    errorStrategy = {task.exitStatus in [134,137,140,142] ? 'retry' : 'finish'}
+    errorStrategy {task.exitStatus in [134,137,140,142] ? 'retry' : 'finish'}
     maxRetries 1
     input:
        tuple val(contig),
@@ -164,7 +164,7 @@ process sortVcf_Trio {
     cpus 2
     maxRetries 3
     memory { 8.GB * task.attempt }
-    errorStrategy = {task.exitStatus in [137,140] ? 'retry' : 'finish'}
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
        tuple val(meta), path("calls/*"),
         path(ref), path(ref_idx), path(ref_cache), env(REF_PATH),
@@ -223,12 +223,14 @@ process mergeVcf_Trio {
 }
 
 
+// Sort, merge and filter out non-variant homozygous reference alleles (RefCalls)
 process sortmergedVcf_Trio {
+    publishDir "${params.out_dir}", mode: 'copy', pattern: "*wf_trio_snp.vcf*"
     label "clair3nova"
     cpus 2
     maxRetries 3
     memory { 8.GB * task.attempt }
-    errorStrategy = {task.exitStatus in [137,140] ? 'retry' : 'finish'}
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
        tuple val(meta), path("merged_calls/*"),
         path(ref), path(ref_idx), path(ref_cache), env(REF_PATH),
@@ -240,11 +242,13 @@ process sortmergedVcf_Trio {
     pypy \$CLAIR3_NOVA_PATH/clair3.py SortVcf_Trio \
     --input_dir merged_calls \
     --vcf_fn_prefix  "merge" \
-    --output_fn "${meta.alias}.wf_trio_snp.vcf" \
+    --output_fn "unfiltered.vcf" \
     --sampleName "${meta.alias}" \
     --ref_fn "$ref" \
     --tmp_path tmp \
     --contigs_fn tmp/CONTIGS
+    bcftools view --exclude 'FILTER=="RefCall"' "unfiltered.vcf.gz" | bgzip > "${meta.alias}.wf_trio_snp.vcf.gz"
+    tabix -p vcf "${meta.alias}.wf_trio_snp.vcf.gz"
     """
 }
 
@@ -256,7 +260,7 @@ process sortmergedGVcf_Trio {
     cpus 2
     maxRetries 3
     memory { 8.GB * task.attempt }
-    errorStrategy = {task.exitStatus in [137,140] ? 'retry' : 'finish'}
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
        tuple val(meta), path("merged_gvcf_calls/*"), path(ref), path(ref_idx), path(ref_cache), env(REF_PATH), path("tmp")
     output:
@@ -275,51 +279,24 @@ process sortmergedGVcf_Trio {
 }
 
 
-process phase_trio {
-    tag "$contig:${meta.alias}"
-    label "clair3nova"
-    cpus 4
-    memory { phaser_memory[task.attempt - 1] }
-    maxRetries 3
-    errorStrategy = {task.exitStatus in [137,140] ? 'retry' : 'finish'}
-    input:
-       tuple val(meta),val(contig),
-        path(het_snps),
-        path(xam), path(xam_idx),
-        path(ref), path(ref_idx), path(ref_cache), env(REF_PATH)
-    output:
-       tuple val(meta),val(contig), path("phased_${contig}.vcf"), emit: phased
-    script:
-    """
-    whatshap phase \
-        --output phased_${contig}.vcf \
-        --reference ${ref} \
-        --ignore-read-groups \
-            ${het_snps} \
-            ${xam}
-    """
-
-}
-
-
 process sortphased_Trio {
     label "clair3nova"
     cpus 2
     maxRetries 3
-    errorStrategy = {task.exitStatus in [137,140] ? 'retry' : 'finish'}
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     memory { 8.GB * task.attempt }
     input:
        tuple val(meta), path("phased_calls/*"),
         path(ref), path(ref_idx), path(ref_cache), env(REF_PATH),
         path("tmp")
     output:
-       tuple val(meta), path("${meta.alias}.phased.vcf.gz"), path("${meta.alias}.phased.vcf.gz.tbi"), emit: final_vcf
+       tuple val(meta), path("${meta.alias}.vcf.gz"), path("${meta.alias}.vcf.gz.tbi"), emit: final_vcf
     script:
     """
     pypy \$CLAIR3_NOVA_PATH/clair3.py SortVcf_Trio \
     --input_dir phased_calls \
     --vcf_fn_prefix  "phased" \
-    --output_fn "${meta.alias}".phased.vcf \
+    --output_fn "${meta.alias}".vcf \
     --sampleName $meta.alias \
     --ref_fn $ref \
     --tmp_path tmp \
@@ -327,28 +304,39 @@ process sortphased_Trio {
     """
 }
 
-
+// Include haplotag and haplotagphase
 process haplotag_trio {
     cpus 4
-    memory 4.GB
-    label "clair3nova"
+    memory { phaser_memory[task.attempt - 1] }
+    maxRetries 2
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
+    label "wftrio"
     input:
-       tuple val(meta), val(contig), path(het_snps),
-        path(xam), path(xam_idx),
+       tuple val(meta), path(xam), path(xam_idx), val(contig), path(joint_vcf), path(joint_vcf_tbi),
         path(ref), path(ref_idx), path(ref_cache), env(REF_PATH)
     output:
-       tuple val(meta), path("${contig}_hp.bam"), emit: haplotag_bam
+       tuple val(contig), val(meta), path("${contig}_hp.bam"), path("${contig}_hp.bam.bai"), emit: haplotag_bam
+       tuple val(meta), path("${meta.alias}.${contig}.haplotagphased.vcf.gz"), emit: haplotag_phased_vcf
     script:
     """
-    bgzip phased_${contig}.vcf 
-    tabix -f -p vcf phased_${contig}.vcf.gz
+    bcftools view -a -s ${meta.alias} --regions ${contig} "${joint_vcf}" | bgzip > "filtered.vcf.gz"
+    tabix -p vcf "filtered.vcf.gz"
     whatshap haplotag \
-        --reference ${ref} \
+        --reference "${ref}" \
         --regions ${contig} \
         --ignore-read-groups \
-        phased_${contig}.vcf.gz  \
-        ${xam} \
-    | samtools view -O bam --reference ${ref} -@3 -o ${contig}_hp.bam##idx##${contig}_hp.bam.bai --write-index
+        "filtered.vcf.gz" \
+        "${xam}" \
+    | samtools view -O bam --reference "${ref}" -@3 -o ${contig}_hp.bam##idx##${contig}_hp.bam.bai --write-index
+    whatshap haplotagphase \
+        --ignore-read-groups \
+        --only-indels \
+        -o "${meta.alias}.${contig}.haplotagphased.vcf" \
+        --reference ${ref} \
+        "filtered.vcf.gz" \
+        ${contig}_hp.bam
+    bgzip "${meta.alias}.${contig}.haplotagphased.vcf"
+    tabix -p vcf "${meta.alias}.${contig}.haplotagphased.vcf.gz"
     """
 }
 
@@ -399,7 +387,7 @@ process sortgvcf_Trio_contig {
     cpus 2
     maxRetries 3
     memory { 8.GB * task.attempt }
-    errorStrategy = {task.exitStatus in [137,140] ? 'retry' : 'finish'}
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     input:
        tuple val(meta), val(contig), path("calls/*"), path(ref), path(ref_idx), path(ref_cache), env(REF_PATH), path("tmp")
     output:
@@ -423,28 +411,98 @@ process glnexus {
     cpus 6
     memory { 8.GB * task.attempt }
     maxRetries 3
-    errorStrategy = {task.exitStatus in [137,140] ? 'retry' : 'finish'}
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
     label "wftrio"
     input:
        tuple val(contig),
        path("proband.gvcf.gz"), path("paternal.gvcf.gz"), path("maternal.gvcf.gz"),
        path("proband.vcf"), val(family_id), path("gl_config.yml")
     output:
-       tuple val(family_id), path("${family_id}.${contig}.vcf.gz"), emit: gl_vcf
+       tuple val(family_id), val(contig), path("${family_id}.${contig}.vcf.gz"), path("${family_id}.${contig}.vcf.gz.tbi"), emit: gl_vcf
     script:
     def threads = task.cpus - 2
     """
     glnexus_cli --threads ${threads} --dir glnexus_DB --config "gl_config.yml" \
     "proband.gvcf.gz" "paternal.gvcf.gz"  "maternal.gvcf.gz"  \
-    | bcftools view --threads 1 -o merged.vcf.gz -O z - && bcftools index --threads 1 -t merged.vcf.gz
+    | bcftools view --threads 1 -o merged.vcf.gz -O z -
+    bcftools index --threads 1 -t merged.vcf.gz
 
     echo -e ${params.proband_sample_name}"\\n"${params.pat_sample_name}"\\n"${params.mat_sample_name} > samples.lst
     bgzip "proband.vcf"
     tabix -p vcf "proband.vcf.gz"
 
-    bcftools annotate --collapse none -c "INFO/DNP:=DNP" -a "proband.vcf.gz" merged.vcf.gz \
-    | bcftools view -S samples.lst -o "${family_id}.${contig}.vcf.gz" && bcftools index --threads 1 -t "${family_id}.${contig}.vcf.gz"
+    bcftools view -S samples.lst -o "${family_id}.${contig}.vcf.gz" merged.vcf.gz
+    bcftools index --threads 1 -t "${family_id}.${contig}.vcf.gz"
 
     """
 }
 
+
+process phase_joint_trio {
+    tag "$contig:trio_phase"
+    label "wftrio"
+    cpus 1
+    memory { phaser_memory[task.attempt - 1] }
+    maxRetries 2
+    errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}
+    input:
+        tuple val(family_name), val(contig), path(joint_vcf), path(joint_vcf_tbi),
+        val(proband_meta), path("proband.bam"), path("proband.bam.bai"),
+        val(pat_meta), path("pat.bam"), path("pat.bam.bai"),
+        val(mat_meta), path("mat.bam"), path("mat.bam.bai"),
+        path(ref), path(ref_idx), path(ref_cache), env(REF_PATH),
+        path(ped_file)
+    output:
+        tuple val(contig), path("phased_${contig}.vcf.gz"), path("phased_${contig}.vcf.gz.tbi"), emit: joint_phased
+    script:
+    """
+    # Whatshap only requires first row of pedigree file
+    awk -v var="${proband_meta.alias}" -F '\t' '\$2 ~ var {{ print \$0 }}' ${ped_file} > edited.ped
+    whatshap phase \
+        --output "phased_${contig}.vcf" \
+        --chromosome ${contig} \
+        --ped edited.ped \
+        --only-snvs \
+        --reference "${ref}" \
+            "${joint_vcf}" \
+            proband.bam \
+            pat.bam \
+            mat.bam
+    bgzip "phased_${contig}.vcf"
+    tabix -p vcf "phased_${contig}.vcf.gz"
+    """
+}
+
+
+// Filter joint phased to individual vcfs per contig
+process filter_joint {
+    cpus 1
+    memory 4.GB
+    label "wftrio"
+    input:
+       tuple val(meta), val(contig), path("phased_unfiltered.vcf.gz"), path("phased_unfiltered.vcf.gz.tbi")
+    output:
+       tuple val(meta), val(contig),  path("phased_${contig}_${meta.alias}.vcf")
+    script:
+    """
+    bcftools view -a -s ${meta.alias} --regions ${contig} phased_unfiltered.vcf.gz > "phased_${contig}_${meta.alias}.vcf"
+    """
+}
+
+
+process merge_individual_vcfs {
+    label "wftrio"
+    cpus 4
+    memory 4.GB
+    input:
+       val (prefix)
+       path ("all_vcfs/*")
+    output:
+        tuple path("${prefix}.wf_trio_snp.vcf.gz"), path("${prefix}.wf_trio_snp.vcf.gz.tbi")
+    script:
+    """
+    bcftools merge --threads ${task.cpus} all_vcfs/*.vcf.gz > "${prefix}.wf_trio_snp.vcf"
+    bgzip "${prefix}.wf_trio_snp.vcf"
+    tabix -p vcf "${prefix}.wf_trio_snp.vcf.gz"
+    """
+}

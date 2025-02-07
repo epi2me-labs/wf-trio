@@ -359,10 +359,9 @@ workflow {
     
         // Output results
         snp_results = trio_snp_results.gvcf | map { [it, null] }
-            | concat(trio_snp_results.haplotagged_bam.map{ meta, xam, xai -> [xam, xai]}.flatten().map { [it, null] })
-            | concat(trio_snp_results.rtg_summary | map { [it, null] })  
-            | concat(trio_snp_results.joint_vcf.flatten().map{ [it, null] }) 
-        | publish_snp
+            | concat(trio_snp_results.rtg_summary | map { [it, null] })
+
+        publish_snp(snp_results)
     }
     // Run SV workflow
     if (params.sv) {
@@ -372,9 +371,7 @@ workflow {
             sv_bams = samples.map{ meta, bam, bai, stats -> [meta, bam, bai]}
         }
         trio_sv_results = sv_trio(sv_bams, snp_bed, ref_channel, ped_file, OPTIONAL_FILE, chromosome_codes)
-        trio_sv_results.trio_sv_vcf | map { [it, null] }
-        | concat(trio_sv_results.compressed_vcf.flatMap{ meta, vcf, tbi -> [vcf, tbi]} | map { [it, null]})
-        | concat(trio_sv_results.rtg_summary | map { [it, null] })| publish_sv
+        trio_sv_results.rtg_summary | map { [it, null] } | publish_sv
     }
 
     // Get stats are standard report

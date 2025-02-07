@@ -16,8 +16,7 @@ process sniffles2_joint {
         def phase = params.phased ? "--phase" : ""
         def min_sv_len = params.min_sv_length ? "--minsvlen ${params.min_sv_length}" : ""
         def sniffles_args = params.sniffles_args ?: ''
-        // Set family ID as alias some compatible with hum-var-sv downstream processes
-        joint_meta = ['alias': joint_prefix]
+        joint_meta = ['family_id': joint_prefix]
     """
     sniffles \
         --threads $task.cpus \
@@ -97,12 +96,12 @@ process sortVCF {
         tuple val(xam_meta), path(vcf)
         val suffix
     output:
-        tuple val(xam_meta), path("${xam_meta.alias}.${suffix}.vcf.gz"), emit: vcf_gz
-        tuple val(xam_meta), path("${xam_meta.alias}.${suffix}.vcf.gz.tbi"), emit: vcf_tbi
+        tuple val(xam_meta), path("${xam_meta.family_id}.${suffix}.vcf.gz"), emit: vcf_gz
+        tuple val(xam_meta), path("${xam_meta.family_id}.${suffix}.vcf.gz.tbi"), emit: vcf_tbi
     script:
     """
-    bcftools sort -m 2G -T ./ -O z $vcf > "${xam_meta.alias}.${suffix}.vcf.gz"
-    tabix -p vcf "${xam_meta.alias}.${suffix}.vcf.gz"
+    bcftools sort -m 2G -T ./ -O z $vcf > "${xam_meta.family_id}.${suffix}.vcf.gz"
+    tabix -p vcf "${xam_meta.family_id}.${suffix}.vcf.gz"
     """
 }
 

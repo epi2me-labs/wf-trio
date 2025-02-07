@@ -8,6 +8,8 @@ include {
 
 include {
     rtgTools;
+    annotate_low_complexity as annotate_low_complexity_individual;
+    annotate_low_complexity as annotate_low_complexity_joint;
 } from '../modules/local/common'
  
 // workflow module
@@ -43,14 +45,20 @@ workflow sv_trio {
         final_sv_vcf = filteredCalls
         | map{ xam_meta, vcf, tbi -> [vcf, tbi]}
         | flatten
-        // Also filter individual vcfs
-        compressed_vcf = filterCalls(snfs.compressed.combine(snp_bed), chromosome_codes, suffix)
+
+        // Also filter individual vcfs using BED
+        filtered_vcf = filterCalls(snfs.compressed.combine(snp_bed), chromosome_codes, suffix)
         // Checks multi-sample VCF file for variant calls which do not follow Mendelian inheritance
         rtg = rtgTools(filteredCalls, ref_channel, ped_file, suffix)
         rtg_summary_txt = rtg.summary.map{ family_name, sum -> sum }
+
+        // SV annotation
+        // Annotate tandem repeat in joint and individual VCFs for downstream processing.  
+        prefixed_individual = filtered_vcf.map {xam_meta, vcf, tbi -> [xam_meta.alias, xam_meta, vcf, tbi, "sv"]}
+        prefixed_joint = filteredCalls.map{ xam_meta, vcf, tbi -> [xam_meta.family_id, xam_meta, vcf, tbi, "sv"]}
+        annotated_individual = annotate_low_complexity_individual(prefixed_individual)
+        annotated_joint = annotate_low_complexity_joint(prefixed_joint)
+
 emit:
     rtg_summary = rtg_summary_txt
-    sv_unmerged = snfs.vcf
-    trio_sv_vcf = final_sv_vcf
-    compressed_vcf = compressed_vcf
 }

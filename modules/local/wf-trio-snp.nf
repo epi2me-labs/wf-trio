@@ -345,6 +345,7 @@ process cat_haplotagged_contigs {
     label "wf_human_snp"
     cpus 4
     memory 15.GB // cat should not need this, but weirdness occasionally strikes
+    publishDir "${params.out_dir}", mode: 'copy', pattern: "*haplotagged*"
     input:
         tuple val(meta), path("contig_bams/*"),
             path(ref), path(ref_idx), path(ref_cache), env(REF_PATH) // intermediate input always BAM here
@@ -489,7 +490,7 @@ process filter_joint {
     """
 }
 
-
+// Merge individual to a multivcf and ensure order of them is proband, pat, mat 
 process merge_individual_vcfs {
     label "wftrio"
     cpus 4
@@ -501,8 +502,10 @@ process merge_individual_vcfs {
         tuple path("${prefix}.wf_trio_snp.vcf.gz"), path("${prefix}.wf_trio_snp.vcf.gz.tbi")
     script:
     """
+    # Create a list of the samples in the order they should be in the final joint VCF
+    echo -e ${params.proband_sample_name}"\\n"${params.pat_sample_name}"\\n"${params.mat_sample_name} > samples.txt
     bcftools merge --threads ${task.cpus} all_vcfs/*.vcf.gz > "${prefix}.wf_trio_snp.vcf"
-    bgzip "${prefix}.wf_trio_snp.vcf"
+    bcftools view -S samples.txt "${prefix}.wf_trio_snp.vcf" | bgzip > "${prefix}.wf_trio_snp.vcf.gz"
     tabix -p vcf "${prefix}.wf_trio_snp.vcf.gz"
     """
 }

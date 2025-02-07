@@ -566,3 +566,44 @@ process publish {
     """
     """
 }
+
+// Annotate tandem repeat and homopolymers
+process annotate_low_complexity {
+    publishDir "${params.out_dir}", mode: 'copy', pattern: "*.vcf*"
+    cpus 2
+    memory 4.GB
+    label "wftrio"
+    input:
+        tuple val(prefix),
+            val(xam_meta),
+            path("unannotated.vcf.gz"), path('unannotated.vcf.gz.tbi'),
+            val(suffix) // to indicate snp or sv
+    output:
+        tuple val(prefix), val(xam_meta), path("${prefix}.wf_trio_${suffix}.vcf.gz"), path("${prefix}.wf_trio_${suffix}.vcf.gz.tbi"), emit: filtered
+    script:
+        // Set the docker env variable and
+        // get the default BED for snp or sv from container
+        def snp_filter = "##FILTER=<ID=HPgt9,Description=\"Variants contained within homopolymers greater than 9 bp\">"
+        def sv_filter = "##FILTER=<ID=TR,Description=\"Variants contained within tandem repeat regions\">"
+        def annotation = (suffix == "snp") ? "HPgt9" : "TR"
+        def filter_tag =  (suffix == "snp") ? snp_filter : sv_filter
+        annotation_bed = "\$WHALEFISH_ANNOTATION_BED_PATH/${suffix}/*.bed" 
+        if (suffix !in ["snp", "sv"]){
+            error "Invalid suffix"
+        }
+        """
+        # Filter VCF with BED file
+        echo ${annotation_bed}
+        bedtools intersect -f 1 -header -b  ${annotation_bed} -a "unannotated.vcf.gz" |
+        bcftools query -f "%CHROM\\t%POS\\t%FILTER\\t${annotation}\\n" | (grep -v "LowQual" || true) | cut -f 1-2,4 | bgzip > pos_toannot.tsv.gz
+        tabix -p vcf -s 1 -b 2 -e 2 "pos_toannot.tsv.gz"
+        # Create header
+        echo "${filter_tag}" > "annot.hdr"
+        # Create new filtered VCF with correct Header
+        bcftools annotate -a "pos_toannot.tsv.gz" -h "annot.hdr" -c CHROM,POS,FILTER "unannotated.vcf.gz" |
+        bgzip -c > "${prefix}.wf_trio_${suffix}.vcf.gz"
+        tabix -p vcf "${prefix}.wf_trio_${suffix}.vcf.gz"
+        """
+}
+
+

@@ -19,6 +19,8 @@ include {
 include {
     concat_vcfs;
     rtgTools;
+    annotate_low_complexity as annotate_low_complexity_individual;
+    annotate_low_complexity as annotate_low_complexity_joint;
 } from '../modules/local/common'
 
 include {
@@ -171,7 +173,7 @@ workflow snp_trio {
 
         // Prepare outputs
         rtg_summary_txt = rtg.summary.map{ family_name, sum -> sum }
-        gl_vcf = merged_sorted_vcf.final_vcf.flatMap{ family_name, vcf, tbi -> [vcf, tbi]}
+        gl_vcf = merged_sorted_vcf.final_vcf.map{ family_name, vcf, tbi -> [vcf, tbi]}
 
         // Trio phasing (pedigree joint phasing)
         if (params.phased){
@@ -226,11 +228,17 @@ workflow snp_trio {
             vcf_joint = gl_vcf
             trio_hap_bam = Channel.empty()
         }
+    
+        // SNP annotation
+        // Annotate homopolymers in joint and individual VCFs for downstream processing. 
+        prefixed_individual = snp_vcfs.map {xam_meta, vcf, tbi -> [xam_meta.alias, xam_meta, vcf, tbi, "snp"]}
+        prefixed_joint = vcf_joint.map{ vcf, tbi -> [params.family_id, "none", vcf, tbi, "snp"]}
+        annotated_individual = annotate_low_complexity_individual(prefixed_individual)
+        annotated_joint = annotate_low_complexity_joint(prefixed_joint)
 
     emit:
         gvcf = gvcfs
         haplotagged_bam = trio_hap_bam
         rtg_summary = rtg_summary_txt
         contigs = contigs
-        joint_vcf = vcf_joint
 }

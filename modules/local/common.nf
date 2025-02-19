@@ -569,17 +569,18 @@ process publish {
 
 // Annotate tandem repeat and homopolymers
 process annotate_low_complexity {
-    publishDir "${params.out_dir}", mode: 'copy', pattern: "*.vcf*"
+    publishDir "${params.out_dir}", mode: 'copy', pattern: "*wf_trio_*"
     cpus 2
     memory 4.GB
     label "wftrio"
     input:
         tuple val(prefix),
             val(xam_meta),
-            path("unannotated.vcf.gz"), path('unannotated.vcf.gz.tbi'),
+            path("unannotated.${extension}.gz"), path("unannotated.${extension}.gz.tbi"),
             val(suffix) // to indicate snp or sv
+            val(extension) // vcf or gvcf
     output:
-        tuple val(prefix), val(xam_meta), path("${prefix}.wf_trio_${suffix}.vcf.gz"), path("${prefix}.wf_trio_${suffix}.vcf.gz.tbi"), emit: filtered
+        tuple val(prefix), val(xam_meta), path("${prefix}.wf_trio_${suffix}.${extension}.gz"), path("${prefix}.wf_trio_${suffix}.${extension}.gz.tbi"), emit: filtered
     script:
         // Set the docker env variable and
         // get the default BED for snp or sv from container
@@ -591,18 +592,22 @@ process annotate_low_complexity {
         if (suffix !in ["snp", "sv"]){
             error "Invalid suffix"
         }
+        if (extension !in ["vcf", "gvcf"]){
+            error "Invalid extension"
+        }
         """
         # Filter VCF with BED file
         echo ${annotation_bed}
-        bedtools intersect -f 1 -header -b  ${annotation_bed} -a "unannotated.vcf.gz" |
-        bcftools query -f "%CHROM\\t%POS\\t%FILTER\\t${annotation}\\n" | (grep -v "LowQual" || true) | cut -f 1-2,4 | bgzip > pos_toannot.tsv.gz
+        bedtools intersect -f 1 -header -b  ${annotation_bed} -a "unannotated.${extension}.gz" |
+        bcftools view -i 'ALT!="<NON_REF>"' | 
+        bcftools query -f "%CHROM\\t%POS\\t%FILTER\\t${annotation}\\n" | grep -Ev "LowQual|MONOALLELIC" | cut -f 1-2,4 | bgzip > pos_toannot.tsv.gz
         tabix -p vcf -s 1 -b 2 -e 2 "pos_toannot.tsv.gz"
         # Create header
         echo "${filter_tag}" > "annot.hdr"
         # Create new filtered VCF with correct Header
-        bcftools annotate -a "pos_toannot.tsv.gz" -h "annot.hdr" -c CHROM,POS,FILTER "unannotated.vcf.gz" |
-        bgzip -c > "${prefix}.wf_trio_${suffix}.vcf.gz"
-        tabix -p vcf "${prefix}.wf_trio_${suffix}.vcf.gz"
+        bcftools annotate -a "pos_toannot.tsv.gz" -h "annot.hdr" -c CHROM,POS,FILTER "unannotated.${extension}.gz" |
+        bgzip -c > "${prefix}.wf_trio_${suffix}.${extension}.gz"
+        tabix -p vcf "${prefix}.wf_trio_${suffix}.${extension}.gz"
         """
 }
 

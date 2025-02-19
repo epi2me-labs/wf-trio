@@ -13,23 +13,23 @@ include {
     checkEnv_trio;
     glnexus;
     sortgvcf_Trio_contig;
-    merge_individual_vcfs;
+    annotate_dnp as annotate_dnp_vcf;
+    annotate_dnp as annotate_dnp_gvcf;
+    annotate_dnp as annotate_dnp_gvcf_contig;
 } from '../modules/local/wf-trio-snp'
 
 include {
     concat_vcfs;
+    concat_vcfs as concat_snp_vcfs;
     rtgTools;
-    annotate_low_complexity as annotate_low_complexity_individual;
+    annotate_low_complexity as annotate_low_complexity_vcf;
+    annotate_low_complexity as annotate_low_complexity_gvcf;
     annotate_low_complexity as annotate_low_complexity_joint;
 } from '../modules/local/common'
 
 include {
     snp as snp_proband; snp as snp_mat; snp as snp_pat;
 } from "../subworkflows/wf-human-snp"
-
-include {
-    concat_vcfs as concat_snp_vcfs;
-} from "../wf-human-variation/modules/local/common"
 
 OPTIONAL_FILE = "$projectDir/data/OPTIONAL_FILE"
 // workflow module
@@ -119,7 +119,7 @@ workflow snp_trio {
         grouped_vcf = mergeVcf_Trio.out.merged_vcf
             .map{ meta, contig, vcf -> [meta, vcf]}
             .groupTuple()
-         
+        
         mergeVcf_Trio.out.merged_gvcf
             | map{ meta, contig, vcf -> [meta, vcf]}
             | groupTuple()
@@ -133,15 +133,20 @@ workflow snp_trio {
                 .combine(checkEnv_trio.out.tmp))
                 hap_bam = Channel.empty()
 
+        // Move DNP annotate from Info to format in individual vcfs
+        // So VCF's are compatible with downstream analysis tools
+        annotate_dnp_vcf(sortmergedVcf_Trio.out.sorted_trio.map{meta, vcf, tbi -> [meta, "NA", vcf, tbi]}, "vcf")
+        annotate_dnp_gvcf(sortmergedGVcf_Trio.out.sorted_trio.map{meta, vcf, tbi -> [meta, "NA", vcf, tbi]}, "gvcf")
+    
         // Prepare outputs
-        snp_vcfs = sortmergedVcf_Trio.out.sorted_trio
-        gvcfs = sortmergedGVcf_Trio.out.sorted_trio.flatMap{ meta, vcf, tbi -> [vcf, tbi] }
+        snp_vcfs = annotate_dnp_vcf.out.dnp.map{meta, null_contig, vcf, tbi -> [meta, vcf, tbi]}
 
         // Prepare per contig VCFS for GLNEXUS
         //sort gvcfs per contig
         sorted_per_contig = sortgvcf_Trio_contig(mergeVcf_Trio.out.merged_gvcf.combine(ref_channel)
             .combine(checkEnv_trio.out.tmp))
-        contig_vcfs_branched = sorted_per_contig
+        annotated_sorted_per_contig = annotate_dnp_gvcf_contig(sorted_per_contig, "gvcf")
+        contig_vcfs_branched = annotated_sorted_per_contig
         | branch{
             meta, contig, gvcf, tbi ->
             proband: meta.alias == "${params.proband_sample_name}"
@@ -190,7 +195,14 @@ workflow snp_trio {
                     | combine(ref_channel)
                     | combine(ped_file)
             phase_trio_out = phase_joint_trio(phase_trio_tuple)
-        
+
+            joint_concat = phase_trio_out.joint_phased
+                .map{contig, vcf, tbi -> ["${params.family_id}", vcf]}
+                .groupTuple()
+
+            // Sort and combine contigs back together
+            sortJointPhased_Trio = concat_snp_vcfs(joint_concat, "wf_trio_snp")
+
             // Filter joint phased to individual VCFs per contig
             // Order does not matter here 
             bams_to_phase = proband_bam_named
@@ -200,18 +212,7 @@ workflow snp_trio {
             haplotagJoint_Trio(bams_to_phase
                     | combine(phase_trio_out.joint_phased)
                     | combine(ref_channel))
-     
-            // Get haplotagphase vcf with phase information added to indels based on haplotagged reads.
-            haplotag_phased = haplotagJoint_Trio.out.haplotag_phased_vcf
 
-            // Sort and combine contigs back together
-            sortJointPhased_Trio = concat_snp_vcfs(haplotag_phased.groupTuple(), "wf_trio_snp")
-
-            // Merge back to joint VCF
-            merge_individual_vcfs(
-                params.family_id,
-                sortJointPhased_Trio.final_vcf.map{ meta, vcf, tbi -> [vcf, tbi]}.collect())
-           
             // Join per contig bam
             catJoint_haplotagged_contigs(
                 haplotagJoint_Trio.out.haplotag_bam.map{contig, meta, bam, bai -> [meta, bam]}
@@ -221,7 +222,7 @@ workflow snp_trio {
 
             // Get final xam and joint vcf
             trio_hap_bam = catJoint_haplotagged_contigs.out.merged_xam
-            vcf_joint = merge_individual_vcfs.out
+            vcf_joint = sortJointPhased_Trio.final_vcf.map{ meta, vcf, tbi -> [vcf, tbi]}
 
         } else {
             // If no phasing then just output joint vcf
@@ -233,11 +234,15 @@ workflow snp_trio {
         // Annotate homopolymers in joint and individual VCFs for downstream processing. 
         prefixed_individual = snp_vcfs.map {xam_meta, vcf, tbi -> [xam_meta.alias, xam_meta, vcf, tbi, "snp"]}
         prefixed_joint = vcf_joint.map{ vcf, tbi -> [params.family_id, "none", vcf, tbi, "snp"]}
-        annotated_individual = annotate_low_complexity_individual(prefixed_individual)
-        annotated_joint = annotate_low_complexity_joint(prefixed_joint)
+        prefixed_gvcf = annotate_dnp_gvcf.out.dnp.map {xam_meta, null_contig, vcf, tbi -> [xam_meta.alias, xam_meta, vcf, tbi, "snp"]}
+        annotated_individual = annotate_low_complexity_vcf(prefixed_individual, "vcf")
+        annotated_gvcf = annotate_low_complexity_gvcf(prefixed_gvcf, "gvcf")
+        annotated_joint = annotate_low_complexity_joint(prefixed_joint, "vcf")
+
+        
 
     emit:
-        gvcf = gvcfs
+        gvcf = annotated_gvcf
         haplotagged_bam = trio_hap_bam
         rtg_summary = rtg_summary_txt
         contigs = contigs

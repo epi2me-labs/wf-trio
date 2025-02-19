@@ -56,8 +56,8 @@ workflow sv_trio {
         // Annotate tandem repeat in joint and individual VCFs for downstream processing.  
         prefixed_individual = filtered_vcf.map {xam_meta, vcf, tbi -> [xam_meta.alias, xam_meta, vcf, tbi, "sv"]}
         prefixed_joint = filteredCalls.map{ xam_meta, vcf, tbi -> [xam_meta.family_id, xam_meta, vcf, tbi, "sv"]}
-        annotated_individual = annotate_low_complexity_individual(prefixed_individual)
-        annotated_joint = annotate_low_complexity_joint(prefixed_joint)
+        annotated_individual = annotate_low_complexity_individual(prefixed_individual, "vcf")
+        annotated_joint = annotate_low_complexity_joint(prefixed_joint, "vcf")
 
 emit:
     rtg_summary = rtg_summary_txt

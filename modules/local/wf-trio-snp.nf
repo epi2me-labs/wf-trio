@@ -218,14 +218,42 @@ process mergeVcf_Trio {
         # mergevcf trio outputs gvcf as lz4 as is an intermediate file within clair3-nova
         # to make it compatible with downstream tools in this workflow mainly glnexus uncompress
         lz4 "merge_${contig}.gvcf.lz4" "merge_${contig}.gvcf"
-       
         """
+}
+
+
+// Move DNP from info to format field in individual VCF and GVCF
+process annotate_dnp {
+    label "wftrio"
+    cpus 2
+    maxRetries 3
+    memory 4.GB
+    input:
+       tuple val(meta),  val(contig), path("input.${extension}.gz"), path("input.${extension}.gz.tbi") // vcf or gvcf and contig is optional
+       val(extension)
+    output:
+       tuple val(meta), val(contig), path("*.wf_trio_snp.${extension}.gz"), path("*.wf_trio_snp.${extension}.gz.tbi"), emit: dnp
+    script:
+        String final_filename = "${meta.alias}.wf_trio_snp.${extension}.gz"
+        if (contig != "NA"){
+            final_filename = "${meta.alias}.${contig}.wf_trio_snp.${extension}.gz"
+        }
+        if (extension !in ["vcf", "gvcf"]){
+            error "Invalid extension"
+        }
+    """
+    echo "##FORMAT=<ID=DNP,Number=.,Type=Float,Description=\\"de novo variant probability\\">" > header.txt
+    bcftools query -f '%CHROM\\t%POS\\t%INFO/DNP\\n' "input.${extension}.gz" | bgzip -c > dnp_info.tsv.gz
+    tabix --sequence 1 --begin 2 --end 2 dnp_info.tsv.gz
+    bcftools annotate -x INFO/DNP --header-lines header.txt --annotations dnp_info.tsv.gz --columns CHROM,POS,FORMAT/DNP -o edit.vcf "input.${extension}.gz"
+    bgzip -c edit.vcf > ${final_filename}
+    tabix --preset vcf ${final_filename}
+    """
 }
 
 
 // Sort, merge and filter out non-variant homozygous reference alleles (RefCalls)
 process sortmergedVcf_Trio {
-    publishDir "${params.out_dir}", mode: 'copy', pattern: "*wf_trio_snp.vcf*"
     label "clair3nova"
     cpus 2
     maxRetries 3
@@ -316,7 +344,6 @@ process haplotag_trio {
         path(ref), path(ref_idx), path(ref_cache), env(REF_PATH)
     output:
        tuple val(contig), val(meta), path("${contig}_hp.bam"), path("${contig}_hp.bam.bai"), emit: haplotag_bam
-       tuple val(meta), path("${meta.alias}.${contig}.haplotagphased.vcf.gz"), emit: haplotag_phased_vcf
     script:
     """
     bcftools view -a -s ${meta.alias} --regions ${contig} "${joint_vcf}" | bgzip > "filtered.vcf.gz"
@@ -328,15 +355,6 @@ process haplotag_trio {
         "filtered.vcf.gz" \
         "${xam}" \
     | samtools view -O bam --reference "${ref}" -@3 -o ${contig}_hp.bam##idx##${contig}_hp.bam.bai --write-index
-    whatshap haplotagphase \
-        --ignore-read-groups \
-        --only-indels \
-        -o "${meta.alias}.${contig}.haplotagphased.vcf" \
-        --reference ${ref} \
-        "filtered.vcf.gz" \
-        ${contig}_hp.bam
-    bgzip "${meta.alias}.${contig}.haplotagphased.vcf"
-    tabix -p vcf "${meta.alias}.${contig}.haplotagphased.vcf.gz"
     """
 }
 
@@ -382,7 +400,7 @@ process cat_haplotagged_contigs {
     """
 }
 
-
+// Sort gvcf per contig
 process sortgvcf_Trio_contig {
     label "clair3nova"
     cpus 2
@@ -460,7 +478,7 @@ process phase_joint_trio {
     # Whatshap only requires first row of pedigree file
     awk -v var="${proband_meta.alias}" -F '\t' '\$2 ~ var {{ print \$0 }}' ${ped_file} > edited.ped
     whatshap phase \
-        --output "phased_${contig}.vcf" \
+        --output "phased_${contig}.tmp.vcf" \
         --chromosome ${contig} \
         --ped edited.ped \
         --only-snvs \
@@ -469,7 +487,7 @@ process phase_joint_trio {
             proband.bam \
             pat.bam \
             mat.bam
-    bgzip "phased_${contig}.vcf"
+    sed 's/AD,Number=./AD,Number=R/g' "phased_${contig}.tmp.vcf" | bgzip -c > "phased_${contig}.vcf.gz"
     tabix -p vcf "phased_${contig}.vcf.gz"
     """
 }
@@ -487,25 +505,5 @@ process filter_joint {
     script:
     """
     bcftools view -a -s ${meta.alias} --regions ${contig} phased_unfiltered.vcf.gz > "phased_${contig}_${meta.alias}.vcf"
-    """
-}
-
-// Merge individual to a multivcf and ensure order of them is proband, pat, mat 
-process merge_individual_vcfs {
-    label "wftrio"
-    cpus 4
-    memory 4.GB
-    input:
-       val (prefix)
-       path ("all_vcfs/*")
-    output:
-        tuple path("${prefix}.wf_trio_snp.vcf.gz"), path("${prefix}.wf_trio_snp.vcf.gz.tbi")
-    script:
-    """
-    # Create a list of the samples in the order they should be in the final joint VCF
-    echo -e ${params.proband_sample_name}"\\n"${params.pat_sample_name}"\\n"${params.mat_sample_name} > samples.txt
-    bcftools merge --threads ${task.cpus} all_vcfs/*.vcf.gz > "${prefix}.wf_trio_snp.vcf"
-    bcftools view -S samples.txt "${prefix}.wf_trio_snp.vcf" | bgzip > "${prefix}.wf_trio_snp.vcf.gz"
-    tabix -p vcf "${prefix}.wf_trio_snp.vcf.gz"
     """
 }

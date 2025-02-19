@@ -18,15 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RefCall SNPs are now filtered out of the final SNP VCFs.
 - `--phased` parameter to enable pedigree phasing of the SNP VCF's (default: true) 
 - Annotation of tandem repeat regions in individual and joint SV VCF's, will use default BED file internal to the workflow.
-- Annotation of long homopolymers in individual and joint SNP VCF's, will use default BED file internal to the workflow.
+- Annotation of long homopolymers in individual VCF's/GVCF's and joint SNP VCF's, will use default BED file internal to the workflow.
 ### Changed
 - Phasing performed is now pedigree phasing.
-- Update whatshap v1.7.0 to v2.3.0.
-- Add whatshap haplotagphase step to add phase information to indels based on haplotagged reads. 
+- Update whatshap v1.7.0 to v2.3.0. 
 - Update clair3-nova v0.3.0 to v0.3.1 
 - Reconcile template with v5.3.1
+- Transfer De novo probabilities from INFO to FORMAT field.
+- Modified the phased Joint SNP VCF header to reflect replacing `Number=.` with `Number=R` in the AD field.
 - `{alias}.wf_trio_snp.vcf.gz` output files are now the VCF's output by clair3-nova.
-- `{family_id}.wf_trio_snp.vcf.gz` output file contains the joint pedigree phased variant calling using Glnexus.
+- `{family_id}.wf_trio_snp.vcf.gz` output file contains the joint pedigree phased variant calling.
 
 ## [v0.0.2]
 ### Fixed

@@ -358,8 +358,7 @@ workflow {
             fam_id, gl_conf, ped_file, ref_channel, exts, chromosome_codes)
     
         // Output results
-        snp_results = trio_snp_results.gvcf | map { [it, null] }
-            | concat(trio_snp_results.rtg_summary | map { [it, null] })
+        snp_results = trio_snp_results.rtg_summary | map { [it, null] }
 
         publish_snp(snp_results)
     }

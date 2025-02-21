@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Modified the phased Joint SNP VCF header to reflect replacing `Number=.` with `Number=R` in the AD field.
 - `{alias}.wf_trio_snp.vcf.gz` output files are now the VCF's output by clair3-nova.
 - `{family_id}.wf_trio_snp.vcf.gz` output file contains the joint pedigree phased variant calling.
+- A default tandem repeat `tr_bed` is provided to sniffles2. Can be overwritten with the `tr_bed` parameter.
 
 ## [v0.0.2]
 ### Fixed

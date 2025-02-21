@@ -1,0 +1,1 @@
+../wf-human-variation/bin/get_genome.py

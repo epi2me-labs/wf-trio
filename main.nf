@@ -26,7 +26,8 @@ include {
     publish as publish_snp;
     publish as publish_sv;
 } from './modules/local/common'
-include { concat_vcfs as concat_refined_snp } from './wf-human-variation/modules/local/common'
+include { concat_vcfs as concat_refined_snp;
+          getGenome } from './wf-human-variation/modules/local/common'
 include { prepare_reference } from './wf-human-variation/lib/reference'
 
 OPTIONAL_FILE = file("$projectDir/data/OPTIONAL_FILE")
@@ -210,6 +211,20 @@ workflow {
         "mat"
     )
     samples = proband.mix(pat, mat)
+
+    check_genome = getGenome(samples.map{ meta, xam, xai, stats -> [xam, xai, meta]})
+    check_genome.map{ genome -> if (genome == "hg19"){
+        String input_data_err_msg = '''\
+            #####################################################################
+            # INPUT DATA PROBLEM
+            The genome build detected in the BAM is not compatible with this
+            workflow. The workflow does not support hg19.
+            See the README for a link to the only supported reference genome hg38/GRCh38
+            ################################################################################
+            '''.stripIndent()
+            error input_data_err_msg
+        }
+    }
 
     snp_bed = Channel.fromPath(OPTIONAL_FILE)
     if (params.bed){

@@ -377,6 +377,13 @@
                     "fa_icon": "fas fa-question-circle",
                     "default": false,
                     "hidden": true
+                },
+                "str": {
+                    "type": "boolean",
+                    "description": "Unused hidden param required for wf-human-variation.",
+                    "help_text": "This parameter is included for support with wf-human-variation, its setting has no effect.",
+                    "default": false,
+                    "hidden": true
                 }
             }
         }

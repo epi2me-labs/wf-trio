@@ -5,7 +5,7 @@ include:
 
 variables:
     # We'll use the single-file case for these runs
-    NF_BEFORE_SCRIPT: mkdir -p ${CI_PROJECT_NAME}/data/ && wget -O ${CI_PROJECT_NAME}/data/wf-trio-test.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-trio/wf-trio-test.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/wf-trio-test.tar.gz -C  ${CI_PROJECT_NAME}/data/
+    NF_BEFORE_SCRIPT: mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/wf-trio-test.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-trio/wf-trio-test.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/wf-trio-test.tar.gz -C  ${CI_PROJECT_NAME}/data/
     NF_WORKFLOW_OPTS: "--proband_bam wf-trio/data/wf-trio-test/Ashkenazi_test_TP_data/nf_bam_test_hg002/hg002.bam \
         --mat_bam wf-trio/data/wf-trio-test/Ashkenazi_test_TP_data/nf_bam_test_hg004 \
         --pat_bam wf-trio/data/wf-trio-test/Ashkenazi_test_TP_data/nf_bam_test_hg003 \
@@ -36,13 +36,13 @@ docker-run:
     tags: [] # no need for big ram
     parallel:
         matrix:
-            - MATRIX_NAME: [ "trio", "trio-without-bed", "snp-only", "sv-only", "no-phasing" ]
+            - MATRIX_NAME: [ "trio", "trio-without-bed", "snp-only", "sv-only", "no-phasing", "hg19-test-fail" ]
     rules:
         - if: ($CI_COMMIT_BRANCH == null || $CI_COMMIT_BRANCH == "dev-template")
           when: never
         - if: $MATRIX_NAME == "trio"
           variables:
-              NF_BEFORE_SCRIPT: mkdir -p ${CI_PROJECT_NAME}/data/ && wget -O ${CI_PROJECT_NAME}/data/wf-trio-test.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-trio/wf-trio-test.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/wf-trio-test.tar.gz -C ${CI_PROJECT_NAME}/data/
+              NF_BEFORE_SCRIPT: mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/wf-trio-test.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-trio/wf-trio-test.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/wf-trio-test.tar.gz -C ${CI_PROJECT_NAME}/data/
               NF_WORKFLOW_OPTS: "-executor.\\$$local.memory 16GB \
               --proband_bam wf-trio/data/wf-trio-test/Ashkenazi_test_TP_data/nf_bam_test_hg002/hg002.bam \
               --pat_bam wf-trio/data/wf-trio-test/Ashkenazi_test_TP_data/nf_bam_test_hg003 \
@@ -56,7 +56,7 @@ docker-run:
               --override_basecaller_cfg dna_r10.4.1_e8.2_400bps_sup@v4.3.0 --sv --snp"
         - if: $MATRIX_NAME == "trio-without-bed"
           variables:
-              NF_BEFORE_SCRIPT: mkdir -p ${CI_PROJECT_NAME}/data/ && wget -O ${CI_PROJECT_NAME}/data/wf-trio-test-automodel.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-trio/wf-trio-test-automodel.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/wf-trio-test-automodel.tar.gz -C ${CI_PROJECT_NAME}/data/
+              NF_BEFORE_SCRIPT: mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/wf-trio-test-automodel.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-trio/wf-trio-test-automodel.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/wf-trio-test-automodel.tar.gz -C ${CI_PROJECT_NAME}/data/
               NF_WORKFLOW_OPTS: "-executor.\\$$local.memory 16GB \
               --proband_bam wf-trio/data/wf-trio-test-automodel/Ashkenazi_test_TP_data/nf_bam_test_hg002/hg002.bam \
               --pat_bam wf-trio/data/wf-trio-test-automodel/Ashkenazi_test_TP_data/nf_bam_test_hg003 \
@@ -68,7 +68,7 @@ docker-run:
               --snp --sv"
         - if: $MATRIX_NAME == "snp-only"
           variables:
-              NF_BEFORE_SCRIPT: mkdir -p ${CI_PROJECT_NAME}/data/ && wget -O ${CI_PROJECT_NAME}/data/wf-trio-test-automodel.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-trio/wf-trio-test-automodel.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/wf-trio-test-automodel.tar.gz -C ${CI_PROJECT_NAME}/data/
+              NF_BEFORE_SCRIPT: mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/wf-trio-test-automodel.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-trio/wf-trio-test-automodel.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/wf-trio-test-automodel.tar.gz -C ${CI_PROJECT_NAME}/data/
               NF_WORKFLOW_OPTS: "-executor.\\$$local.memory 16GB \
               --proband_bam wf-trio/data/wf-trio-test-automodel/Ashkenazi_test_TP_data/nf_bam_test_hg002/hg002.bam \
               --pat_bam wf-trio/data/wf-trio-test-automodel/Ashkenazi_test_TP_data/nf_bam_test_hg003 \
@@ -80,7 +80,7 @@ docker-run:
               --snp"
         - if: $MATRIX_NAME == "sv-only"
           variables:
-              NF_BEFORE_SCRIPT: mkdir -p ${CI_PROJECT_NAME}/data/ && wget -O ${CI_PROJECT_NAME}/data/wf-trio-test-automodel.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-trio/wf-trio-test-automodel.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/wf-trio-test-automodel.tar.gz -C ${CI_PROJECT_NAME}/data/
+              NF_BEFORE_SCRIPT: mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/wf-trio-test-automodel.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-trio/wf-trio-test-automodel.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/wf-trio-test-automodel.tar.gz -C ${CI_PROJECT_NAME}/data/
               NF_WORKFLOW_OPTS: "-executor.\\$$local.memory 16GB \
               --proband_bam wf-trio/data/wf-trio-test-automodel/Ashkenazi_test_TP_data/nf_bam_test_hg002/hg002.bam \
               --pat_bam wf-trio/data/wf-trio-test-automodel/Ashkenazi_test_TP_data/nf_bam_test_hg003 \
@@ -92,7 +92,7 @@ docker-run:
               --sv"
         - if: $MATRIX_NAME == "no-phasing"
           variables:
-              NF_BEFORE_SCRIPT: mkdir -p ${CI_PROJECT_NAME}/data/ && wget -O ${CI_PROJECT_NAME}/data/wf-trio-test-automodel.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-trio/wf-trio-test-automodel.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/wf-trio-test-automodel.tar.gz -C ${CI_PROJECT_NAME}/data/
+              NF_BEFORE_SCRIPT: mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/wf-trio-test-automodel.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-trio/wf-trio-test-automodel.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/wf-trio-test-automodel.tar.gz -C ${CI_PROJECT_NAME}/data/
               NF_WORKFLOW_OPTS: "-executor.\\$$local.memory 16GB \
               --proband_bam wf-trio/data/wf-trio-test-automodel/Ashkenazi_test_TP_data/nf_bam_test_hg002/hg002.bam \
               --pat_bam wf-trio/data/wf-trio-test-automodel/Ashkenazi_test_TP_data/nf_bam_test_hg003 \
@@ -103,3 +103,21 @@ docker-run:
               --bed  wf-trio/data/wf-trio-test-automodel/Ashkenazi_test_TP.bed \
               --pedigree_file wf-trio/data/wf-trio-test-automodel/ped_file.tsv \
               --snp --phased false"
+        - if: $MATRIX_NAME == "hg19-test-fail"
+          variables:
+              NF_BEFORE_SCRIPT: mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/hg19-test-fail.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-trio/hg19-test-fail.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/hg19-test-fail.tar.gz -C ${CI_PROJECT_NAME}/data/
+              NF_WORKFLOW_OPTS: "-executor.\\$$local.memory 16GB \
+              --proband_bam wf-trio/data/hg19-test-fail/demo.bam \
+              --pat_bam wf-trio/data/hg19-test-fail/demo.bam \
+              --mat_bam wf-trio/data/hg19-test-fail/demo.bam \
+              --ref wf-trio/data/hg19-test-fail/human_g1k_v37.fasta.gz \
+              --proband_sample_name hg002 --pat_sample_name hg003 --mat_sample_name hg004 \
+              --pedigree_file wf-trio/data/hg19-test-fail/ped_file.ped --sv false \
+              --family_id Ashkenazi  --override_basecaller_cfg dna_r10.4.1_e8.2_400bps_sup@v4.3.0 \
+              --snp"
+              ASSERT_NEXTFLOW_FAILURE: 1
+              ASSERT_NEXTFLOW_FAILURE_REXP: The workflow does not support hg19
+    
+
+
+

@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Phasing performed is now pedigree phasing.
 - Update whatshap v1.7.0 to v2.3.0. 
-- Update clair3-nova v0.3.0 to v0.3.1 
+- Update clair3-nova v0.3.0 to v0.3.2 which reduces incomplete variant calls and adds the reference calls to GVCF outputs.
 - Reconcile template with v5.3.1
 - Transfer De novo probabilities from INFO to FORMAT field.
 - Modified the phased Joint SNP VCF header to reflect replacing `Number=.` with `Number=R` in the AD field.

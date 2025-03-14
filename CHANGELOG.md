@@ -23,12 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Phasing performed is now pedigree phasing.
 - Update whatshap v1.7.0 to v2.3.0. 
 - Update clair3-nova v0.3.0 to v0.3.2 which reduces incomplete variant calls and adds the reference calls to GVCF outputs.
-- Reconcile template with v5.3.1
 - Transfer De novo probabilities from INFO to FORMAT field.
 - Modified the phased Joint SNP VCF header to reflect replacing `Number=.` with `Number=R` in the AD field.
 - `{alias}.wf_trio_snp.vcf.gz` output files are now the VCF's output by clair3-nova.
 - `{family_id}.wf_trio_snp.vcf.gz` output file contains the joint pedigree phased variant calling.
 - A default tandem repeat `tr_bed` is provided to sniffles2. Can be overwritten with the `tr_bed` parameter.
+- Reconciled workflow with wf-template v5.5.0.
 
 ## [v0.0.2]
 ### Fixed

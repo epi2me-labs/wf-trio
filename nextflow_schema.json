@@ -364,6 +364,12 @@
                     "default": false,
                     "description": "Enable to prevent sending a workflow ping."
                 },
+                "store_dir": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "CI parameter.",
+                    "hidden": true
+                },
                 "help": {
                     "type": "boolean",
                     "description": "Display help text.",

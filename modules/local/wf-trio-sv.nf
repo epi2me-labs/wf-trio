@@ -129,3 +129,82 @@ process filterCalls {
     tabix -p vcf "${xam_meta.alias}.${suffix}.vcf.gz"
     """
 }
+
+//TO DO: Make wf-hum-var report process and python script
+//reusable currently report name is hard coded
+process report {
+    label "wf_common"
+    publishDir "${params.out_dir}", mode: 'copy', pattern: "*wf-trio-sv-report.html"
+    cpus 1
+    memory 4.GB
+    input:
+        tuple val(xam_meta), path(vcf), path(tbi)
+        file versions
+        path "params.json"
+    output:
+        path "${xam_meta.alias}.wf-trio-sv-report.html", emit: html
+    script:
+        def report_name = "${xam_meta.alias}.wf-trio-sv-report.html"
+    """
+    workflow-glue report_sv \
+        $report_name \
+        --vcf $vcf \
+        --params params.json \
+        --params-hidden 'help,schema_ignore_params,${params.schema_ignore_params}' \
+        --versions $versions \
+        --revision ${workflow.revision} \
+        --commit ${workflow.commitId} \
+        --output_json "${xam_meta.alias}.svs.json" \
+        --workflow_version ${workflow.manifest.version}
+    sed -i 's/wf-human-variation/wf-trio/' "${xam_meta.alias}.wf-trio-sv-report.html"
+    """
+}
+
+
+process getVersions {
+    label "wf_human_sv"
+    cpus 1
+    memory 2.GB
+    output:
+        path "versions.txt"
+    script:
+    """
+    trap '' PIPE # suppress SIGPIPE without interfering with pipefail
+    sniffles --version | head -n 1 | sed 's/ Version //' >> versions.txt
+    bcftools --version | head -n 1 | sed 's/ /,/' >> versions.txt
+    samtools --version | head -n 1 | sed 's/ /,/' >> versions.txt
+    """
+}
+
+
+
+process makeJointReport {
+    label "wf_common"
+    publishDir "${params.out_dir}", mode: 'copy', pattern: "*.wf-trio-sv-report.html"
+    cpus 1
+    memory 4.GB
+    input:
+        tuple val(family_id), path(rtg_mendelian)
+        path versions
+        path "params.json"
+        path "ped_file.ped"
+    output:
+        path "${family_id}.wf-trio-sv-report.html", emit: 'report'
+    script:
+        def report_name = "${family_id}.wf-trio-sv-report.html"
+        def wfversion = workflow.manifest.version
+        if( workflow.commitId ){
+            wfversion = workflow.commitId
+        }
+        """
+        grep "^${family_id}" "ped_file.ped" > "ped_file_family.ped"
+        workflow-glue report_joint_sv \
+        $report_name \
+        --versions $versions \
+        --params params.json \
+        --sample_name $family_id \
+        --wf_version ${workflow.manifest.version} \
+        --rtg_mendelian ${rtg_mendelian} \
+        --ped_file "ped_file_family.ped"
+        """
+}

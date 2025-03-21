@@ -1,13 +1,5 @@
 {
   "files": {
-    "workflow-report": {
-      "filepath": "./wf-trio-report.html",
-      "title": "workflow report",
-      "description": "Report for all samples",
-      "mime-type": "text/html",
-      "optional": false,
-      "type": "aggregated"
-    },
     "read-stats-per-file": {
       "filepath": "./fastq_ingress_results/reads/fastcat_stats/per-file-stats.tsv",
       "title": "Per file read stats",
@@ -46,6 +38,46 @@
       "description": "Per sample reads concatenated in to one fastq file.",
       "mime-type": "text/json",
       "optional": false,
+      "type": "per-sample"
+    },
+    "Trio-small-variants-report": {
+      "filepath": "{{ family_id }}.wf-trio-snp-report.html",
+      "title": "Trio small variants report",
+      "description": "Analysis and stats relating to the multi-sample small variants VCF.",
+      "mime-type": "text/html",
+      "optional": true,
+      "type": "aggregated"
+    },
+    "Trio-sv-report": {
+      "filepath": "{{ family_id }}.wf-trio-sv-report.html",
+      "title": "Trio SV report",
+      "description": "Analysis and stats relating to the multi-sample SV VCF.",
+      "mime-type": "text/html",
+      "optional": true,
+      "type": "aggregated"
+    },
+    "individual-sv-report": {
+      "filepath": "{{ sample_id }}.wf-trio-sv-report.html",
+      "title": "Individual SV report",
+      "description": "Analysis and stats relating to the SVs for each individual.",
+      "mime-type": "text/html",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "individual-small-variants-report": {
+      "filepath": "{{ sample_id }}.wf-trio-snp-report.html",
+      "title": "Individual small variants report",
+      "description": "Analysis and stats relating to the small variants for each individual.",
+      "mime-type": "text/html",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "individual-qc-report": {
+      "filepath": "{{ sample_id }}.wf-trio-qc-report.html",
+      "title": "Individual QC report",
+      "description": "Quality control read stats including read length and quality scores.",
+      "mime-type": "text/html",
+      "optional": true,
       "type": "per-sample"
     }
   }

@@ -13,6 +13,9 @@ include {
     checkEnv_trio;
     glnexus;
     sortgvcf_Trio_contig;
+    getVersions;
+    addVersions;
+    makeJointReport;
     annotate_dnp as annotate_dnp_vcf;
     annotate_dnp as annotate_dnp_gvcf;
     annotate_dnp as annotate_dnp_gvcf_contig;
@@ -28,8 +31,20 @@ include {
 } from '../modules/local/common'
 
 include {
+    getParams;
+} from '../lib/common'
+
+include {
     snp as snp_proband; snp as snp_mat; snp as snp_pat;
 } from "../subworkflows/wf-human-snp"
+
+include {
+    makeReport;
+} from "../modules/local/wf-human-snp.nf"
+
+include {
+    vcfStats;
+} from "../wf-human-variation/modules/local/wf-human-snp"
 
 OPTIONAL_FILE = "$projectDir/data/OPTIONAL_FILE"
 // workflow module
@@ -240,6 +255,15 @@ workflow snp_trio {
         annotated_joint = annotate_low_complexity_joint(prefixed_joint, "vcf")
 
         
+
+        // Make reports for individuals
+        software_versions = getVersions()
+        more_versions = addVersions(software_versions)
+        workflow_params = getParams()
+        vcf_stats = vcfStats(snp_vcfs)
+        makeReport(vcf_stats, more_versions, workflow_params)
+        // Make joint report
+        makeJointReport(rtg.summary, more_versions, workflow_params, ped_file)
 
     emit:
         gvcf = annotated_gvcf

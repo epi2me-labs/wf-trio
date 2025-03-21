@@ -332,3 +332,33 @@ process lookup_clair3_nova_model {
     echo "Clair3 nova model  : ${clair3_nova_model}"
     '''
 }
+
+
+//TO DO: Make wf-hum-var report process and python script
+//reusable currently report name is hard coded
+process makeReport {
+    label "wf_common"
+    publishDir "${params.out_dir}", mode: 'copy', pattern: "*wf-trio-snp-report.html"
+    cpus 1
+    memory 4.GB
+    input:
+        tuple val(xam_meta), path(vcfstats)
+        path versions
+        path "params.json"
+    output:
+        path "${xam_meta.alias}.wf-trio-snp-report.html"
+    script:
+        def report_name = "${xam_meta.alias}.wf-trio-snp-report.html"
+        def wfversion = workflow.manifest.version
+        """
+        workflow-glue report_snp \
+        $report_name \
+        --versions $versions \
+        --params params.json \
+        --vcf_stats $vcfstats \
+        --sample_name $xam_meta.alias \
+        --clinvar_vcf "" \
+        --workflow_version ${workflow.manifest.version}
+        sed -i 's/wf-human-variation/wf-trio/' "${xam_meta.alias}.wf-trio-snp-report.html"
+        """
+}

@@ -456,6 +456,67 @@ process glnexus {
     """
 }
 
+process getVersions {
+    label "clair3nova"
+    cpus 1
+    memory 2.GB 
+    output:
+        path "versions.txt"
+    script:
+        """
+        run_clair3_nova.sh --version | sed 's/ /,/' >> versions.txt
+        """
+}
+
+
+process addVersions {
+    label "wftrio"
+    cpus 1
+    memory 2.GB
+    input:
+        path "other_versions.txt"
+    output:
+        path "versions.txt"
+    script:
+        """
+        cat other_versions.txt > versions.txt
+        rtg RTG_MEM=2G --version | head -n 1 | sed 's/..*Product:..*RTG Tools/RTG Tools/' | sed 's/s /s,/' >> versions.txt
+        whatshap --version | awk '{print "whatshap,"\$1}' >> versions.txt
+        (glnexus_cli 2>&1 | sed 1q | sed 's/^.*release //' | sed 's/\\s.*\$//' | sed 's/^/glnexus,/' >> versions.txt) || echo "done"
+        """
+}
+
+
+process makeJointReport {
+    label "wf_common"
+    publishDir "${params.out_dir}", mode: 'copy', pattern: "*wf-trio-snp-report.html"
+    cpus 1
+    memory 4.GB
+    input:
+        tuple val(family_id), path(rtg_mendelian)
+        path versions
+        path "params.json"
+        path "ped_file.ped"
+    output:
+        path "${family_id}.wf-trio-snp-report.html", emit: 'report'
+    script:
+        def report_name = "${family_id}.wf-trio-snp-report.html"
+        def wfversion = workflow.manifest.version
+        if( workflow.commitId ){
+            wfversion = workflow.commitId
+        }
+        """
+        grep "^${family_id}" "ped_file.ped" > "ped_file_family.ped"
+        workflow-glue report_joint_snp \
+        $report_name \
+        --versions $versions \
+        --params params.json \
+        --sample_name $family_id \
+        --wf_version ${workflow.manifest.version} \
+        --rtg_mendelian ${rtg_mendelian} \
+        --ped_file "ped_file_family.ped"
+        """
+}
 
 process phase_joint_trio {
     tag "$contig:trio_phase"

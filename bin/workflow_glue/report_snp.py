@@ -1,0 +1,1 @@
+../../wf-human-variation/bin/workflow_glue/report_snp.py

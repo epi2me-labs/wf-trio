@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--sv` parameter to enable structural variant calling (default: false).
 - `--snp` parameter to enable SNP calling with Clair3-Nova (default: false).
 - RefCall SNPs are now filtered out of the final SNP VCFs.
-- `--phased` parameter to enable pedigree phasing of the SNP VCF's (default: true) 
+- `--phased` parameter to enable pedigree phasing of the SNP VCF's. (default: true) 
+- Output additional reports including Joint SNP report, Joint SV report and individual SNP and SV reports.
 - Annotation of tandem repeat regions in individual and joint SV VCF's, will use default BED file internal to the workflow.
 - Annotation of long homopolymers in individual VCF's/GVCF's and joint SNP VCF's, will use default BED file internal to the workflow.
 ### Changed

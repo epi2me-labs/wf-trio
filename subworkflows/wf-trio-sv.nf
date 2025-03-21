@@ -4,6 +4,9 @@ include {
         sortVCF;
         filterCalls;
         filterCalls as filterTrioCalls;
+        report;
+        getVersions;
+        makeJointReport;
 } from '../modules/local/wf-trio-sv'
 
 include {
@@ -11,6 +14,10 @@ include {
     annotate_low_complexity as annotate_low_complexity_individual;
     annotate_low_complexity as annotate_low_complexity_joint;
 } from '../modules/local/common'
+
+include {
+    getParams;
+} from '../lib/common'
  
 // workflow module
 workflow sv_trio {
@@ -50,7 +57,16 @@ workflow sv_trio {
         filtered_vcf = filterCalls(snfs.compressed.combine(snp_bed), chromosome_codes, suffix)
         // Checks multi-sample VCF file for variant calls which do not follow Mendelian inheritance
         rtg = rtgTools(filteredCalls, ref_channel, ped_file, suffix)
+        rtg_summary = rtg.summary.map{ family_name, sum -> [family_name.family_id, sum] }
         rtg_summary_txt = rtg.summary.map{ family_name, sum -> sum }
+        // Individual SV reports
+        software_versions = getVersions()
+        workflow_params = getParams()
+        report(filtered_vcf, software_versions, workflow_params)
+
+        // Joint SV report
+        makeJointReport(rtg_summary, software_versions, workflow_params, ped_file)
+       
 
         // SV annotation
         // Annotate tandem repeat in joint and individual VCFs for downstream processing.  

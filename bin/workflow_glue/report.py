@@ -15,7 +15,7 @@ def main(args):
     """Run the entry point."""
     logger = get_named_logger("Report")
     report = labs.LabsReport(
-        "Workflow Template Sequencing report", "wf-trio",
+        "Workflow Trio Sequencing report", "wf-trio",
         args.params, args.versions, args.wf_version)
 
     client_fields = None
@@ -43,11 +43,12 @@ def main(args):
                 p(error)
 
     with open(args.metadata) as metadata:
+        d = json.load(metadata)
         sample_details = [{
             'sample': d['alias'],
             'type': d['type'],
             'barcode': d['barcode']
-        } for d in json.load(metadata)]
+        }]
 
     if args.stats:
         with report.add_section("Read summary", "Read summary"):

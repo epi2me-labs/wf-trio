@@ -47,47 +47,24 @@ process getVersions {
 
 process makeReport {
     label "wf_common"
+    publishDir "${params.out_dir}", mode: 'copy', pattern: "*wf-trio-qc-report.html"
     input:
-        val metadata
-        path(stats, stageAs: "stats_*")
-        path client_fields
-        path "versions/*"
-        path "params.json"
+        tuple val(meta), path(stats), path ("versions/*"), path("params.json")
+        path(client_fields)
     output:
-        path "wf-trio-*.html"
+        path "*wf-trio-*.html"
     script:
-        String report_name = "wf-trio-report.html"
-        String metadata = new JsonBuilder(metadata).toPrettyString()
+        String report_name = "${meta.alias}.wf-trio-qc-report.html"
+        String metadata = new JsonBuilder(meta).toPrettyString()
         String client_fields_args = client_fields.name == OPTIONAL_FILE.name ? "" : "--client_fields $client_fields"
     """
     echo '${metadata}' > metadata.json
     workflow-glue report $report_name \
         --versions versions \
-        --stats $stats \
+        --stats $stats/bamstats.readstats.tsv.gz \
         $client_fields_args \
         --params params.json \
         --metadata metadata.json
-    """
-}
-
-
-// See https://github.com/nextflow-io/nextflow/issues/1636. This is the only way to
-// publish files from a workflow whilst decoupling the publish from the process steps.
-// The process takes a tuple containing the filename and the name of a sub-directory to
-// put the file into. If the latter is `null`, puts it into the top-level directory.
-process publish {
-    // publish inputs to output directory
-    label "wf_common"
-    publishDir (
-        params.out_dir,
-        mode: "copy",
-        saveAs: { dirname ? "$dirname/$fname" : fname }
-    )
-    input:
-        tuple path(fname), val(dirname)
-    output:
-        path fname
-    """
     """
 }
 
@@ -145,13 +122,9 @@ workflow pipeline {
         client_fields = params.client_fields && file(params.client_fields).exists() ? file(params.client_fields) : OPTIONAL_FILE
         software_versions = getVersions()
         workflow_params = getParams()
-        
         report = makeReport(
-           metadata,
-           for_report.stats.collect(),
-            client_fields,
-            software_versions,
-            workflow_params
+           reads.map{meta, path, index, stats -> [meta, stats]}.combine(
+            software_versions).combine(workflow_params), client_fields
         )
 
         // replace `null` with path to optional file
@@ -163,7 +136,6 @@ workflow pipeline {
         | collectIngressResultsInDir
     emit:
         ingress_results = collectIngressResultsInDir.out
-        report
         workflow_params
         // TODO: use something more useful as telemetry
         telemetry = workflow_params
@@ -390,10 +362,7 @@ workflow {
 
     // Get stats are standard report
     pipeline(samples)
-    // Output results
-    pipeline.out.report.concat(pipeline.out.workflow_params)
-    | map { [it, null] }
-    | publish
+
 }
 
 workflow.onComplete {

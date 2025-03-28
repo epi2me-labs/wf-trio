@@ -197,7 +197,7 @@ process makeJointReport {
             wfversion = workflow.commitId
         }
         """
-        grep "^${family_id}" "ped_file.ped" > "ped_file_family.ped"
+        grep -P "^${family_id}\t" "ped_file.ped" > "ped_file_family.ped"
         workflow-glue report_joint_sv \
         $report_name \
         --versions $versions \

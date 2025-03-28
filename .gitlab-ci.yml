@@ -36,7 +36,7 @@ docker-run:
     tags: [] # no need for big ram
     parallel:
         matrix:
-            - MATRIX_NAME: [ "trio", "trio-without-bed", "snp-only", "sv-only", "no-phasing", "hg19-test-fail" ]
+            - MATRIX_NAME: [ "trio", "trio-without-bed", "snp-only", "sv-only", "no-phasing", "hg19-test-fail" , "unaligned" ]
     rules:
         - if: ($CI_COMMIT_BRANCH == null || $CI_COMMIT_BRANCH == "dev-template")
           when: never
@@ -103,6 +103,21 @@ docker-run:
               --bed  wf-trio/data/wf-trio-test-automodel/Ashkenazi_test_TP.bed \
               --pedigree_file wf-trio/data/wf-trio-test-automodel/ped_file.tsv \
               --snp --phased false"
+        - if: $MATRIX_NAME == "unaligned"
+          variables:
+              NF_BEFORE_SCRIPT: mkdir -p ${CI_PROJECT_NAME}/data/ && wget -O ${CI_PROJECT_NAME}/data/wf-trio-unaligned.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-trio/wf-trio-unaligned.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/wf-trio-unaligned.tar.gz -C ${CI_PROJECT_NAME}/data/
+              NF_WORKFLOW_OPTS: "-executor.\\$$local.memory 31GB \
+              --proband_bam wf-trio/data/wf-trio-unaligned/Ashkenazi_test_data/nf_bam_test_hg002/hg002_unaligned.bam \
+              --pat_bam wf-trio/data/wf-trio-unaligned/Ashkenazi_test_data/nf_bam_test_hg003 \
+              --mat_bam wf-trio/data/wf-trio-unaligned/Ashkenazi_test_data/nf_bam_test_hg004 \
+              --ref wf-trio/data/wf-trio-unaligned/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta \
+              --proband_sample_name hg002 --pat_sample_name hg003 --mat_sample_name hg004 \
+              --family_id Ashkenazi \
+              --bed  wf-trio/data/wf-trio-unaligned/Ashkenazi_test.bed \
+              --pedigree_file wf-trio/data/wf-trio-unaligned/ped_file.ped \
+              --snp --phased false  --ubam_map_threads 3 \
+              --ubam_sort_threads 2 --ubam_bam2fq_threads 1 \
+              --override_basecaller_cfg dna_r10.4.1_e8.2_400bps_sup@v4.3.0"
         - if: $MATRIX_NAME == "hg19-test-fail"
           variables:
               NF_BEFORE_SCRIPT: mkdir -p ${CI_PROJECT_NAME}/data/ && wget -q -O ${CI_PROJECT_NAME}/data/hg19-test-fail.tar.gz https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-trio/hg19-test-fail.tar.gz && tar -xzvf ${CI_PROJECT_NAME}/data/hg19-test-fail.tar.gz -C ${CI_PROJECT_NAME}/data/

@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Output additional reports including Joint SNP report, Joint SV report and individual SNP and SV reports.
 - Annotation of tandem repeat regions in individual and joint SV VCF's, will use default BED file internal to the workflow.
 - Annotation of long homopolymers in individual VCF's/GVCF's and joint SNP VCF's, will use default BED file internal to the workflow.
+- Alignment resource parameters `ubam_map_threads`, `ubam_sort_threads`, `ubam_bam2fq_threads`.
 ### Changed
 - Phasing performed is now pedigree phasing.
 - Update whatshap v1.7.0 to v2.3.0. 

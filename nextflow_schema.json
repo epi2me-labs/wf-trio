@@ -194,6 +194,52 @@
                 }
             }
         },
+        "multiprocessing_options": {
+            "title": "Multiprocessing Options",
+            "type": "object",
+            "fa_icon": "far fa-gauge-high",
+            "description": "Options for configuring the common processes across the different subworkflows.",
+            "help_text": "These options do not need to be changed for typical use, but allow fine tuning of workflows for users who want more control over the workflow.",
+            "overrides": {
+                "minknow": {
+                    "parameters": {
+                        "hidden": true
+                    }
+                }
+            },
+            "properties": {
+                "ubam_map_threads": {
+                    "type": "integer",
+                    "default": 8,
+                    "description": "Set max number of threads to use for aligning reads from uBAM (limited by config executor cpus)",
+                    "overrides": {
+                        "epi2mecloud": {
+                            "hidden": true
+                        }
+                    }
+                },
+                "ubam_sort_threads": {
+                    "type": "integer",
+                    "default": 3,
+                    "description": "Set max number of threads to use for sorting and indexing aligned reads from uBAM (limited by config executor cpus)",
+                    "overrides": {
+                        "epi2mecloud": {
+                            "hidden": true
+                        }
+                    }
+                },
+                "ubam_bam2fq_threads": {
+                    "type": "integer",
+                    "default": 1,
+                    "description": "Set max number of threads to use for uncompressing uBAM and generating FASTQ for alignment (limited by config executor cpus)",
+                    "overrides": {
+                        "epi2mecloud": {
+                            "hidden": true
+                        }
+                    }
+                }
+            }
+        },
         "advanced_options": {
             "title": "Advanced Options",
             "type": "object",
@@ -390,6 +436,12 @@
                     "help_text": "This parameter is included for support with wf-human-variation, its setting has no effect.",
                     "default": false,
                     "hidden": true
+                },
+                "sample_name": {
+                    "type": "boolean",
+                    "description": "Unused hidden param required for wf-human-variation.",
+                    "help_text": "This parameter is included for support with wf-human-variation, its setting has no effect.",
+                    "hidden": true
                 }
             }
         }
@@ -412,6 +464,9 @@
         },
         {
             "$ref": "#/definitions/misc"
+        },
+        {
+            "$ref": "#/definitions/multiprocessing_options"
         }
     ],
     "properties": {

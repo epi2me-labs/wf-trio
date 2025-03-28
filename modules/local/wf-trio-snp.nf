@@ -112,7 +112,7 @@ process selectCandidates_trio {
 // so retry with more memory if it fails
 process callVarBam_trio {
     label "clair3nova"
-    cpus 1
+    cpus 2
     memory { 4.GB * task.attempt }
     errorStrategy {task.exitStatus in [134,137,140,142] ? 'retry' : 'finish'}
     maxRetries 1
@@ -187,7 +187,8 @@ process sortVcf_Trio {
 
 process mergeVcf_Trio {
     label "clair3nova"
-    cpus 1
+    cpus 2
+    memory 2.GB
     input:
         tuple val(contig), val(meta),
             path("${meta.alias}_c3t.vcf.gz"),
@@ -521,7 +522,7 @@ process makeJointReport {
 process phase_joint_trio {
     tag "$contig:trio_phase"
     label "wftrio"
-    cpus 1
+    cpus 2
     memory { phaser_memory[task.attempt - 1] }
     maxRetries 2
     errorStrategy {task.exitStatus in [137,140] ? 'retry' : 'finish'}

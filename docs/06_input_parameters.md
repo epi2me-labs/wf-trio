@@ -36,6 +36,15 @@
 | sv | boolean | Call structural variants. | If this option is selected, structural variant calling will be carried out using Sniffles2 using the combined multi-sample calling. | False |
 
 
+### Multiprocessing Options
+
+| Nextflow parameter name  | Type | Description | Help | Default |
+|--------------------------|------|-------------|------|---------|
+| ubam_map_threads | integer | Set max number of threads to use for aligning reads from uBAM (limited by config executor cpus) |  | 8 |
+| ubam_sort_threads | integer | Set max number of threads to use for sorting and indexing aligned reads from uBAM (limited by config executor cpus) |  | 3 |
+| ubam_bam2fq_threads | integer | Set max number of threads to use for uncompressing uBAM and generating FASTQ for alignment (limited by config executor cpus) |  | 1 |
+
+
 ### Advanced Options
 
 | Nextflow parameter name  | Type | Description | Help | Default |

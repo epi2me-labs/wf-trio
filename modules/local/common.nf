@@ -5,9 +5,9 @@ process reheader_BAM {
     cpus 4
     memory 4.GB
     input:
-       tuple val(meta), path("input.bam"), path("input.bam.bai"), path(stats)
+       tuple val(meta), path("input.bam"), path("input.bam.bai")
     output:
-       tuple val(meta), path("${meta.alias}.bam"), path("${meta.alias}.bam.bai"), path(stats)
+       tuple val(meta), path("${meta.alias}.bam"), path("${meta.alias}.bam.bai")
     script:
     def threads = Math.max(task.cpus - 2, 1)
     """
@@ -134,21 +134,6 @@ process readStats {
         """
         bamstats -s ${params.sample_name} -u -f ${params.sample_name}.flagstat.tsv --threads ${stats_threads} "${xam}" | gzip > "${params.sample_name}.readstats.tsv.gz"
         """
-}
-
-
-// See https://github.com/nextflow-io/nextflow/issues/1636
-// This is the only way to publish files from a workflow whilst
-// decoupling the publish from the process steps.
-process publish_artifact {
-    publishDir "${params.out_dir}", mode: 'copy', pattern: "*"
-    input:
-        file fname
-    output:
-        file fname
-    """
-    echo "Writing output files"
-    """
 }
 
 
@@ -373,6 +358,7 @@ process makeAlignmentReport {
 // well as get parameters for reporting.
 process getVersions {
     cpus 1
+    memory 4.GB
     output:
         path "versions.txt"
     script:
@@ -554,6 +540,8 @@ process rtgTools {
 process publish {
     // publish inputs to output directory
     label "wf_common"
+    cpus 1
+    memory 2.GB
     publishDir (
         params.out_dir,
         mode: "copy",

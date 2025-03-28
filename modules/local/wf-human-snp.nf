@@ -71,7 +71,7 @@ process make_chunks {
 process pileup_variants {
     // Calls variants per region ("chunk") using pileup network.
     label "clair3nova"
-    cpus 1
+    cpus 2
     memory { 4.GB * task.attempt }
     errorStrategy {task.exitStatus in [134,137,140] ? 'retry' : 'finish'}
     maxRetries 1

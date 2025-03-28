@@ -35,6 +35,7 @@ OPTIONAL_FILE = file("$projectDir/data/OPTIONAL_FILE")
 process getVersions {
     label "wf_common"
     cpus 1
+    memory 2.GB
     output:
         path "versions.txt"
     script:

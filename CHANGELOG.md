@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `{family_id}.wf_trio_snp.vcf.gz` output file contains the joint pedigree phased variant calling.
 - A default tandem repeat `tr_bed` is provided to sniffles2. Can be overwritten with the `tr_bed` parameter.
 - Reconciled workflow with wf-template v5.5.0.
+- Annotation of tandem repeat regions and long homopolymers with `bcftools annotate` now uses ID, REF and ALT column to avoid records with partial overlaps to be annotated.
 
 ## [v0.0.2]
 ### Fixed

@@ -4,7 +4,7 @@
 
 import groovy.json.JsonBuilder
 
-def phaser_memory = params.use_longphase ? [8.GB, 32.GB, 56.GB] : [4.GB, 8.GB, 12.GB]
+def phaser_memory = [4.GB, 8.GB, 12.GB]
 def haptag_memory = [4.GB, 8.GB, 12.GB]
 
 process make_chunks {
@@ -207,15 +207,6 @@ process phase_contig {
         tuple val(contig), path(xam), path(xam_idx), path("phased_${contig}.vcf.gz"), path("phased_${contig}.vcf.gz.tbi"), emit: phased_bam_and_vcf
     script:
         def output_threads = Math.max(task.cpus - 1, 1)
-        if (params.use_longphase)
-        """
-        echo "Using longphase for phasing"
-        longphase phase --ont -o phased_${contig} \
-            -s ${het_snps} -b ${xam} -r ${ref} -t ${task.cpus}
-        bgzip phased_${contig}.vcf
-        tabix -f -p vcf phased_${contig}.vcf.gz
-        """
-        else
         """
         echo "Using whatshap for phasing"
        
@@ -228,7 +219,6 @@ process phase_contig {
             "snps.gz" \
             ${xam}
         tabix -f -p vcf phased_${contig}.vcf.gz
-     
         """
 }
 

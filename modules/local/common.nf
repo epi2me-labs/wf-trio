@@ -526,13 +526,13 @@ process rtgTools {
        path(ped_file)
        val(suffix) // Extra label to add to the output files
     output:
-       tuple val(xam_meta), path("*_RTGannot.txt"), emit: summary
+       tuple val(xam_meta), path("*.RTGannot.txt"), emit: summary
     script:
     """
     rtg RTG_MEM=15G format -o reference.sdf $ref_file
     rtg RTG_MEM=15G mendelian -i "joint_vcf.vcf.gz" -o RTGannot.vcf.gz \
      --pedigree=${ped_file} \
-     -t reference.sdf | tee "${params.family_id}.${suffix}_RTGannot.txt"
+     -t reference.sdf | tee "${params.family_id}.${suffix}.RTGannot.txt"
     """
 }
 

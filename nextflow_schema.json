@@ -9,103 +9,33 @@
     "url": "https://github.com/epi2me-labs/wf-trio",
     "type": "object",
     "definitions": {
-        "input": {
-            "title": "Input Options",
+        "workflow": {
+            "title": "Workflow Options",
             "type": "object",
             "fa_icon": "fas fa-arrow-right",
-            "description": "Parameters for finding and handling input data for analysis.",
+            "description": "Select which sub-workflows of wf-human-variation you wish to run. Parameters for each sub-workflow can be changed using the sections below.",
             "properties": {
                 "snp": {
                     "title": "SNP: Small variants",
                     "type": "boolean",
-                    "description": "Call single nucleotide variants",
-                    "help_text": "If this option is selected, small variant calling will be carried out using Clair3 Nova.",
+                    "description": "Call small variants",
+                    "help_text": "If this option is selected, small variant calling will be carried out using Clair3-Nova, and merging and joint genotyping of variants will be carried out using Glnexus.",
+                    "default": true
+                },
+                "sv": {
+                    "title": "SV: Structural variants",
+                    "type": "boolean",
+                    "description": "Call structural variants.",
+                    "help_text": "If this option is selected, structural variant calling and merging will be carried out using Sniffles2.",
                     "default": false
                 },
-                "proband_bam": {
-                    "type": "string",
-                    "format": "path",
-                    "description": "Proband aligned BAM to use in the analysis.",
-                    "help_text": "This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files for a single sample."
-                },
-                "pat_bam": {
-                    "type": "string",
-                    "format": "path",
-                    "description": "Paternal aligned BAM files to use in the analysis.",
-                    "help_text": "This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files for a single sample."
-                },
-                "mat_bam": {
-                    "type": "string",
-                    "format": "path",
-                    "description": "Maternal aligned BAM files to use in the analysis.",
-                    "help_text": "This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files for a single sample."
-                },
-                "ref": {
-                    "title": "Reference file",
-                    "type": "string",
-                    "format": "file-path",
-                    "description": "Path to a reference FASTA file.",
-                    "help_text": "Reference against which to compare reads for variant calling.",
-                    "overrides": {
-                        "minknow": {
-                            "hint": "alignmentRefFile",
-                            "title": "Reference file for alignment"
-                        }
-                    }
-                },
-                "pedigree_file": {
-                    "type": "string",
-                    "format": "file-path",
-                    "title": "Pedigree file",
-                    "description": "TSV file containing the columns `family_id`, `individual_id`, `paternal_id`, `maternal_id`, `sex`, `phenotype`",
-                    "help_text": "See https://gatk.broadinstitute.org/hc/en-us/articles/360035531972-PED-Pedigree-format for further information."
-                },
-                "clair3_model_path": {
-                    "type": "string",
-                    "format": "directory-path",
-                    "description": "Clair3 model directory.",
-                    "help_text": "The workflow will attempt to map the basecalling model used to a suitable Clair3 model. You can override this by providing the path to a model with this option instead. Models can be obtained from [this page](http://www.bio8.cs.hku.hk/clair3_trio/clair3_models/).",
-                    "hidden": true
-                },
-                "clair3_nova_model_path": {
-                    "type": "string",
-                    "format": "directory-path",
-                    "description": "Clair3 Nova model directory.",
-                    "help_text": "The workflow will attempt to map the basecalling model used to a suitable Clair3 Nova model. You can override this by providing the path to a model with this option instead. Models can be obtained from [this page](http://www.bio8.cs.hku.hk/clair3_trio/clair3_nova_models/).",
-                    "hidden": true
-                },
-                "analyse_unclassified": {
+                "phased": {
                     "type": "boolean",
-                    "default": false,
-                    "title": "Analyse unclassified reads",
-                    "description": "Analyse unclassified reads from input directory. By default the workflow will not process reads in the unclassified directory.",
-                    "help_text": "If selected and if the input is a multiplex directory the workflow will also process the unclassified directory."
-                },
-                "watch_path": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Enable to continuously watch the input directory for new input files.",
-                    "help_text": "This option enables the use of Nextflow\u2019s directory watching feature to constantly monitor input directories for new files."
-                },
-                "client_fields": {
-                    "type": "string",
-                    "format": "file-path",
-                    "description": "A JSON file of key value pairs to display on the report.",
-                    "help_text": "This is used to populate a table of additional information (for example, about upstream components of an assay) to the workflow report.",
-                    "hidden": true
+                    "default": true,
+                    "description": "This option enables pedigree phasing.",
+                    "help_text": "If true the workflow will output the joint phased VCF and haplotagged BAMs. Set to false to skip. Note: Individual SNP VCFs will be unphased."
                 }
             },
-            "allOf": [
-                {
-                    "required": [
-                        "proband_bam",
-                        "pat_bam",
-                        "mat_bam",
-                        "ref",
-                        "pedigree_file"
-                    ]
-                }
-            ],
             "anyOf": [
                 {
                     "required": [
@@ -118,34 +48,87 @@
                     ]
                 }
             ]
-        },
-        "samples": {
-            "title": "Sample Options",
+        },        
+        "input": {
+            "title": "Main Options",
             "type": "object",
-            "fa_icon": "fas fa-vials",
-            "description": "Parameters that relate to samples such as sample sheets and sample names.",
+            "fa_icon": "fas fa-arrow-right",
+            "description": "Parameters for finding and handling input data for analysis.",
             "properties": {
+                "proband_bam": {
+                    "type": "string",
+                    "format": "path",
+                    "description": "Proband aligned or unaligned BAM to use in the analysis.",
+                    "help_text": "This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files for a single sample."
+                },
                 "proband_sample_name": {
                     "type": "string",
-                    "description": "A single sample name for non-multiplexed data. Permissible if passing a single .bam file or directory of .bam files.",
-                    "default": "proband"
+                    "description": "A sample name for the proband sample.",
+                    "help_text": "Must match the sample name provided in the pedigree input file."
+                },
+                "pat_bam": {
+                    "type": "string",
+                    "format": "path",
+                    "description": "Paternal aligned or unaligned BAM to use in the analysis.",
+                    "help_text": "This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files for a single sample."
                 },
                 "pat_sample_name": {
                     "type": "string",
-                    "description": "A single sample name for non-multiplexed data. Permissible if passing a single .fastq(.gz) file or directory of .fastq(.gz) files.",
-                    "default": "paternal"
+                    "description": "A sample name for the paternal sample.",
+                    "help_text": "Must match the sample name provided in the pedigree input file."
+                },
+                "mat_bam": {
+                    "type": "string",
+                    "format": "path",
+                    "description": "Maternal aligned or unaligned BAM to use in the analysis.",
+                    "help_text": "This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files for a single sample."
                 },
                 "mat_sample_name": {
                     "type": "string",
-                    "description": "A single sample name for non-multiplexed data. Permissible if passing a single .fastq(.gz) file or directory of .fastq(.gz) files.",
-                    "default": "maternal"
+                    "description": "A sample name for the maternal sample.",
+                    "help_text": "Must match the sample name provided in the pedigree input file."
                 },
                 "family_id": {
                     "type": "string",
                     "description": "A single family ID relating to the group of samples.",
+                    "help_text": "Should match the family name provided in the pedigree input file.",
                     "default": "family1"
+                },
+                "ref": {
+                    "title": "Reference file",
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "Path to a reference FASTA file.",
+                    "help_text": "Reference against which to compare reads for variant calling."
+                },
+                "pedigree_file": {
+                    "type": "string",
+                    "format": "file-path",
+                    "title": "Pedigree file",
+                    "description": "A pedigree file describing the familial relationships between input samples in the [PED format](https://gatk.broadinstitute.org/hc/en-us/articles/360035531972-PED-Pedigree-format).",
+                    "help_text": "Provide a TSV file containing the columns `family_id`, `individual_id`, `paternal_id`, `maternal_id`, `sex`, `phenotype` with relevant values in the rows. Note: If additional records are present in the file only the ones specified by the sample name parameters will be used."
+                },
+                "bed": {
+                    "title": "Target region BED file",
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "An optional BED file enumerating regions to process for variant calling."
                 }
-            }
+            },
+            "allOf": [
+                {
+                    "required": [
+                        "proband_bam",
+                        "pat_bam",
+                        "mat_bam",
+                        "ref",
+                        "pedigree_file",
+                        "proband_sample_name",
+                        "pat_sample_name",
+                        "mat_sample_name"
+                    ]
+                }
+            ]
         },
         "output": {
             "title": "Output Options",
@@ -161,36 +144,108 @@
                 }
             }
         },
-        "sv_options": {
-            "title": "Structural variant calling options",
+        "snp_options": {
+            "title": "Small variant calling options",
             "type": "object",
-            "description": "Options specific to the SV-calling subworkflow.",
+            "description": "Options specific to the small variant calling subworkflow.",
             "properties": {
-                "sv": {
-                    "title": "SV: Structural variants",
-                    "type": "boolean",
-                    "description": "Call structural variants.",
-                    "help_text": "If this option is selected, structural variant calling will be carried out using Sniffles2 using the combined multi-sample calling.",
-                    "default": false
-                },
-                "cluster_merge_pos": {
-                    "type": "number",
-                    "default": 150,
-                    "description": "Maximum merging distance for insertions and deletions on the same read and cluster in non-repeat regions.",
+                "clair3_model_path": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Clair3 model directory.",
+                    "help_text": "The workflow will attempt to map the basecalling model used to a suitable Clair3 model. You can override this by providing the path to a model with this option instead. Models can be obtained from the [Clair3nova models index](http://www.bio8.cs.hku.hk/clair3_trio/clair3_models/).",
                     "hidden": true
                 },
-                "min_sv_length": {
-                    "type": "number",
-                    "default": 30,
-                    "description": "Minimum structural variant size called by Sniffles2.",
-                    "hidden": true,
-                    "minimum": 30
-                },
-                "sniffles_args": {
+                "clair3_nova_model_path": {
                     "type": "string",
-                    "description": "Additional command line arguments to pass to the Sniffles2 process",
+                    "format": "directory-path",
+                    "description": "Clair3-Nova model directory.",
+                    "help_text": "The workflow will attempt to map the basecalling model used to a suitable Clair3-Nova model. You can override this by providing the path to a model with this option instead. Models can be obtained from the [Clair3nova models index](http://www.bio8.cs.hku.hk/clair3_trio/clair3_nova_models/).",
+                    "hidden": true
+                },
+                "ctg_name": {
+                    "type": "string",
+                    "description": "The name of the sequence to be processed.",
+                    "hidden": true
+                },
+                "include_all_ctgs": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Call variants on all sequences in the reference, otherwise small and structural variants will only be called on chr{1..22,X,Y,MT}.",
+                    "help_text": "Enabling this option will call variants on all contigs of the input reference sequence. Typically this option is not required as standard human reference sequences contain decoy and unplaced contigs that are usually omitted for the purpose of variant calling. This option might be useful for non-standard reference sequence databases."
+                },
+                "ref_pct_full": {
+                    "type": "number",
+                    "default": 0.1,
+                    "description": "Expected percentage of low quality 0/0 variants called in the pileup mode for full-alignment mode calling.",
+                    "hidden": true
+                },
+                "var_pct_full": {
+                    "type": "number",
+                    "default": 0.3,
+                    "description": "Expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling.",
+                    "hidden": true
+                },
+                "var_pct_phasing": {
+                    "type": "number",
+                    "default": 0.7,
+                    "description": "Expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for phasing.",
+                    "hidden": true
+                },
+                "snp_min_af": {
+                    "type": "number",
+                    "default": 0,
+                    "description": "Minimum SNP AF required for a candidate variant.",
+                    "hidden": true
+                },
+                "indel_min_af": {
+                    "type": "number",
+                    "default": 0,
+                    "description": "Minimum Indel AF required for a candidate variant.",
+                    "hidden": true
+                },
+                "vcf_fn": {
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "Candidate sites VCF file input. Variants will only be called at the sites in the VCF file if provided.",
                     "hidden": true,
-                    "help_text": "The additional command line arguments will be passed directly to Sniffles2; ensure to use the right commands for the version, and from the command line provide them as follows: `--sniffles_args=\"--non-germline\"`."
+                    "default": "EMPTY"
+                },
+                "min_mq": {
+                    "type": "number",
+                    "default": 5,
+                    "description": "Reads with mapping quality < min_mq are filtered (experimental).",
+                    "hidden": true
+                },
+                "min_qual": {
+                    "type": "number",
+                    "default": 2,
+                    "description": "Variants with >=min_qual will be marked 'PASS', or 'LowQual' otherwise, optional.",
+                    "hidden": true
+                },
+                "min_contig_size": {
+                    "type": "number",
+                    "default": 0,
+                    "description": "Contigs with contig size < min_contig_size are filtered (experimental).",
+                    "hidden": true
+                },
+                "min_cov": {
+                    "type": "number",
+                    "default": 2,
+                    "description": "Minimum coverage required to call a variant (experimental).",
+                    "hidden": true
+                },
+                "base_err": {
+                    "type": "number",
+                    "default": 0.05,
+                    "description": "Estimated base error rate when enabling gvcf option, default: 0.05 (Reducing this will reduce the number of `./.` variants).",
+                    "hidden": true
+                },
+                "gq_bin_size": {
+                    "type": "number",
+                    "default": 5,
+                    "description": "Default gq bin size for merge non-variant block when enabling gvcf option, default: 5.",
+                    "hidden": true
                 }
             }
         },
@@ -247,30 +302,11 @@
             "description": "Advanced options for configuring processes inside the workflow.",
             "help_text": "These advanced options do not need to be changed for typical use, but allow fine tuning of workflows for users who want more control over the workflow.",
             "properties": {
-                "phased": {
-                    "type": "boolean",
-                    "default": true,
-                    "description": "This option enables pedigree phasing of the outputs.",
-                    "help_text": "If enabled the workflow will add phasing info to the joint VCF for SNPs and SVs, individual SV VCFs and BAMs will be haplotagged."
-                },
-                "bed": {
-                    "title": "Target region BED file",
-                    "type": "string",
-                    "format": "file-path",
-                    "description": "An optional BED file enumerating regions to process for variant calling.",
-                    "help_text": "",
-                    "overrides": {
-                        "minknow": {
-                            "hint": "alignmentBedFile",
-                            "title": "Optional .bed file for enumerating regions to process for variant calling"
-                        }
-                    }
-                },
                 "override_basecaller_cfg": {
                     "title": "Override basecaller configuration",
                     "type": "string",
                     "description": "Name of the model to use for selecting a small variant calling model.",
-                    "help_text": "The workflow will attempt to find the basecaller model from the headers of your input data. Providing a value for this option will override the model found in the data. If the model cannot be found in the header, it must be provided with this option. The basecaller model is used to automatically select the appropriate small variant calling model. The model list shows all models that are compatible for small variant calling with this workflow. You should select 'custom' to override the basecaller_cfg with clair3_model_path.",
+                    "help_text": "The workflow will attempt to find the basecaller model from the headers of your input data. Providing a value for this option will override the model found in the data. If the model cannot be found in the header, it must be provided with this option. The basecaller model is used to automatically select the appropriate small variant calling model for Clair3 and Clair3-Nova. The model list shows all models that are compatible for small variant calling with this workflow. You should select 'custom' to override the basecaller_cfg with clair3_model_path. Note: Clair3 v4.3.0 models will be used for v5.0.0 basecalled data. ",
                     "enum": [
                         "dna_r9.4.1_e8_sup@v3.6",
                         "dna_r9.4.1_e8_hac@v3.3",
@@ -278,116 +314,25 @@
                         "dna_r9.4.1_450bps_hac_prom",
                         "dna_r9.4.1_450bps_hac",
                         "dna_r10.4.1_e8.2_400bps_sup@v4.3.0",
+                        "dna_r10.4.1_e8.2_400bps_hac@v4.3.0",
+                        "dna_r10.4.1_e8.2_400bps_sup@v5.0.0",
+                        "dna_r10.4.1_e8.2_400bps_hac@v5.0.0",
                         "custom"
-                    ],
-                    "overrides": {
-                        "minknow": {
-                            "hint": "basecallModel",
-                            "hidden": true
-                        }
-                    }
-                },
-                "ctg_name": {
-                    "type": "string",
-                    "description": "The name of the sequence to be processed.",
-                    "hidden": true
-                },
-                "include_all_ctgs": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Call for variants on all sequences in the reference, otherwise small and structural variants will only be called on chr{1..22,X,Y,MT}.",
-                    "help_text": "Enabling this option will call for variants on all contigs of the input reference sequence. Typically this option is not required as standard human reference sequences contain decoy and unplaced contigs that are usually omitted for the purpose of variant calling. This option might be useful for non-standard reference sequence databases."
-                },
-                "ref_pct_full": {
-                    "type": "number",
-                    "default": 0.1,
-                    "description": "Expected percentage of low quality 0/0 variants called in the pileup mode for full-alignment mode calling.",
-                    "hidden": true
-                },
-                "var_pct_full": {
-                    "type": "number",
-                    "default": 0.3,
-                    "description": "Expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling.",
-                    "hidden": true
-                },
-                "var_pct_phasing": {
-                    "type": "number",
-                    "default": 0.7,
-                    "description": "Expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for phasing.",
-                    "hidden": true
-                },
-                "snp_min_af": {
-                    "type": "number",
-                    "default": 0,
-                    "description": "Minimum SNP AF required for a candidate variant.",
-                    "hidden": true
-                },
-                "indel_min_af": {
-                    "type": "number",
-                    "default": 0,
-                    "description": "Minimum Indel AF required for a candidate variant.",
-                    "hidden": true
-                },
-                "vcf_fn": {
-                    "type": "string",
-                    "format": "file-path",
-                    "description": "Candidate sites VCF file input, variants will only be called at the sites in the VCF file if provided.",
-                    "hidden": true,
-                    "default": "EMPTY"
-                },
-                "min_mq": {
-                    "type": "number",
-                    "default": 5,
-                    "description": "Reads with mapping quality < min_mq are filtered (experimental).",
-                    "hidden": true
-                },
-                "min_qual": {
-                    "type": "number",
-                    "default": 2,
-                    "description": "Variants with >=min_qual will be marked 'PASS', or 'LowQual' otherwise, optional.",
-                    "hidden": true
-                },
-                "min_contig_size": {
-                    "type": "number",
-                    "default": 0,
-                    "description": "Contigs with contig size < min_contig_size are filtered (experimental).",
-                    "hidden": true
-                },
-                "use_longphase": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Use longphase for phasing.",
-                    "hidden": true
-                },
-                "min_cov": {
-                    "type": "number",
-                    "default": 2,
-                    "description": "Minimum coverage required to call a variant (experimental).",
-                    "hidden": true
+                    ]
                 },
                 "GVCF": {
                     "type": "boolean",
                     "default": true,
-                    "description": "Enable to output a gVCF file in addition to the VCF outputs (experimental).",
+                    "hidden": true,
+                    "description": "Enable to output a gVCF file in addition to the VCF outputs.",
                     "help_text": "By default the workflow outputs a VCF file containing only records where a variant has been detected. Enabling this option will additionally output a gVCF with records spanning all reference positions regardless of whether a variant was detected in the sample."
                 },
                 "glnexus_config": {
                     "type": "string",
                     "format": "file-path",
                     "description": "glnexus config yaml file, a default one is provided.",
+                    "hidden": true,
                     "help_text": "See https://github.com/dnanexus-rnd/GLnexus/wiki/Configuration for further details."
-                },
-                "base_err": {
-                    "type": "number",
-                    "default": 0.05,
-                    "description": "Estimated base error rate when enabling gvcf option, default: 0.05 (Reducing this will reduce the number of `./.` variants).",
-                    "hidden": true
-                },
-                "gq_bin_size": {
-                    "type": "number",
-                    "default": 5,
-                    "description": "Default gq bin size for merge non-variant block when enabling gvcf option, default: 5.",
-                    "hidden": true
                 },
                 "tr_bed": {
                     "title": "Tandem repeat BED file",
@@ -395,7 +340,33 @@
                     "format": "file-path",
                     "hidden": true,
                     "description": "Input BED file containing tandem repeat annotations for the reference genome.",
-                    "help_text": "Providing a tandem repeat BED can improve calling in repetitive regions."
+                    "help_text": "Providing a tandem repeat BED can improve calling in repetitive regions. The workflow will use an appropriate BED file if none is provided."
+                }
+            }
+        },
+        "sv_options": {
+            "title": "Structural variant calling options",
+            "type": "object",
+            "description": "Options specific to the structural variant calling subworkflow.",
+            "properties": {
+                "cluster_merge_pos": {
+                    "type": "number",
+                    "default": 150,
+                    "description": "Maximum merging distance for insertions and deletions on the same read and cluster in non-repeat regions.",
+                    "hidden": true
+                },
+                "min_sv_length": {
+                    "type": "number",
+                    "default": 30,
+                    "description": "Minimum structural variant size called by Sniffles2.",
+                    "hidden": true,
+                    "minimum": 30
+                },
+                "sniffles_args": {
+                    "type": "string",
+                    "description": "Additional command line arguments to pass to the Sniffles2 process.",
+                    "hidden": true,
+                    "help_text": "The additional command line arguments will be passed directly to Sniffles2; ensure to use the right commands for the version, and from the command line provide them as follows: `--sniffles_args=\"--non-germline\"`."
                 }
             }
         },
@@ -430,6 +401,12 @@
                     "default": false,
                     "hidden": true
                 },
+                "client_fields": {
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "A JSON file of key value pairs to display on the report.",
+                    "help_text": "This is used to populate a table of additional information (for example, about upstream components of an assay) to the workflow report."
+                },
                 "str": {
                     "type": "boolean",
                     "description": "Unused hidden param required for wf-human-variation.",
@@ -448,16 +425,19 @@
     },
     "allOf": [
         {
-            "$ref": "#/definitions/input"
+            "$ref": "#/definitions/workflow"
         },
         {
-            "$ref": "#/definitions/samples"
+            "$ref": "#/definitions/input"
         },
         {
             "$ref": "#/definitions/output"
         },
         {
             "$ref": "#/definitions/advanced_options"
+        },
+        {
+            "$ref": "#/definitions/snp_options"
         },
         {
             "$ref": "#/definitions/sv_options"
@@ -491,14 +471,14 @@
     },
     "resources": {
         "recommended": {
-            "cpus": 2,
-            "memory": "2GB"
+            "cpus": 32,
+            "memory": "128GB"
         },
         "minimum": {
-            "cpus": 2,
-            "memory": "2GB"
+            "cpus": 16,
+            "memory": "32GB"
         },
-        "run_time": "5 minutes per sample",
-        "arm_support": true 
+        "run_time": "Variable, depending on coverage and the individual analyses requested. For 30X coverage, and analysis of phased SNPs and SVs, the workflow will take approximately 12h with recommended resources.",
+        "arm_support": false 
     }
 }

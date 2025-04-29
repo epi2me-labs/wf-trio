@@ -1,6 +1,6 @@
 // Trio
 
-def phaser_memory = params.use_longphase ? [8.GB, 32.GB, 56.GB] : [4.GB, 8.GB, 12.GB]
+def phaser_memory = [4.GB, 8.GB, 12.GB]
 
 process checkEnv_trio {
     label "clair3nova"
@@ -507,7 +507,6 @@ process makeJointReport {
             wfversion = workflow.commitId
         }
         """
-        grep -P "^${family_id}\t" "ped_file.ped" > "ped_file_family.ped"
         workflow-glue report_joint_snp \
         $report_name \
         --versions $versions \

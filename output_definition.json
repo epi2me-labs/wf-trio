@@ -1,44 +1,92 @@
 {
   "files": {
-    "read-stats-per-file": {
-      "filepath": "./fastq_ingress_results/reads/fastcat_stats/per-file-stats.tsv",
-      "title": "Per file read stats",
-      "description": "A TSV with per file read stats, including all samples.",
-      "mime-type": "text/tsv",
-      "optional": false,
-      "type": "aggregated"
-    },
-    "read-stats-per-read": {
-      "filepath": "./fastq_ingress_results/reads/fastcat_stats/per-read-stats.tsv",
-      "title": "Per read stats",
-      "description": "A TSV with per read stats, including all samples.",
-      "mime-type": "text/tsv",
-      "optional": false,
-      "type": "aggregated"
-    },
-    "run-ids": {
-      "filepath": "./fastq_ingress_results/reads/fastcat_stats/run_ids",
-      "title": "Run ID's",
-      "description": "List of run ID's present in reads.",
-      "mime-type": "text/txt",
-      "optional": false,
-      "type": "aggregated"
-    },
-    "metamap": {
-      "filepath": "./fastq_ingress_results/reads/metamap.json",
-      "title": "Meta map json",
-      "description": "Meta data used in workflow presented in a JSON.",
-      "mime-type": "text/json",
-      "optional": false,
-      "type": "aggregated"
-    },
-    "sample-data": {
-      "filepath": "./fastq_ingress_results/reads/{{ alias }}.fastq.gz",
-      "title": "Concatenated sequence data",
-      "description": "Per sample reads concatenated in to one fastq file.",
-      "mime-type": "text/json",
-      "optional": false,
+    "snp-vcf": {
+      "filepath": "{{ alias }}.wf_trio_snp.vcf.gz",
+      "title": "Small variant VCF",
+      "description": "VCF file with small variant calls (SNPs and indels) for the sample. These will be unphased.",
+      "mime-type": "application/gzip",
+      "optional": true,
       "type": "per-sample"
+    },
+    "snp-gvcf": {
+      "filepath": "{{ alias }}.wf_trio_snp.gvcf.gz",
+      "title": "Small variant GVCF",
+      "description": "GVCF file with the SNPs for the sample. These will be unphased.",
+      "mime-type": "application/gzip",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "snp-vcf-joint": {
+      "filepath": "{{ family_id }}.wf_trio_snp.vcf.gz",
+      "title": "Joint Small variant VCF",
+      "description": "Joint VCF file with Small variant calls (SNPs and indels).",
+      "mime-type": "application/gzip",
+      "optional": true,
+      "type": "aggregated"
+    },
+    "sv-vcf": {
+      "filepath": "{{ alias }}.wf_trio_sv.vcf.gz",
+      "title": "Structural variant VCF",
+      "description": "VCF file with the SVs for the sample. These will be phased if SNP is enabled.",
+      "mime-type": "application/gzip",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "sv-vcf-joint": {
+      "filepath": "{{ family_id }}.wf_trio_sv.vcf.gz",
+      "title": "Joint structural variant VCF",
+      "description": "VCF file with the SVs for all the samples.",
+      "mime-type": "application/gzip",
+      "optional": true,
+      "type": "aggregated"
+    },
+    "sv-snf": {
+      "filepath": "{{ alias }}.wf_trio_sv.snf",
+      "title": "Structural variant SNF",
+      "description": "SNF file with the SVs for the sample, for onward SV merging.",
+      "mime-type": "application/gzip",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "haplotagged-alignment": {
+      "filepath": "{{ alias }}.haplotagged.bam",
+      "title": "Haplotagged alignment file",
+      "description": "BAM file with the haplotagged reads for the sample. Will be pedigree phased if phased option is used.",
+      "mime-type": "application/gzip",
+      "optional": true,
+      "type": "per-sample"
+    },    
+    "haplotagged-alignment-index": {
+      "filepath": "{{ alias }}.haplotagged.bam.bai",
+      "title": "Haplotagged alignment file index",
+      "description": "The index of the resulting BAM file with the haplotagged reads for the sample.",
+      "mime-type": "application/octet-stream",
+      "optional": true,
+      "type": "per-sample"
+    },
+    "RTG_snp": {
+      "filepath": "{{ family_id }}.wf_trio_snp.RTGannot.txt",
+      "title": "RTG Annotation SNP",
+      "description": "RTG mendelian inheritance report from SNP VCF.",
+      "mime-type": "text/html",
+      "optional": true,
+      "type": "aggregated"
+    },
+    "RTG_sv": {
+      "filepath": "{{ family_id }}.wf_trio_sv.RTGannot.txt",
+      "title": "RTG Annotation SV",
+      "description": "RTG mendelian inheritance report from SV VCF.",
+      "mime-type": "text/html",
+      "optional": true,
+      "type": "aggregated"
+    },
+    "pedigree_file": {
+      "filepath": "{{ family_id }}.wf-trio.ped",
+      "title": "Pedigree file",
+      "description": "The pedigree file filtered by family_id.",
+      "mime-type": "text/tsv",
+      "optional": false,
+      "type": "aggregated"
     },
     "Trio-small-variants-report": {
       "filepath": "{{ family_id }}.wf-trio-snp-report.html",

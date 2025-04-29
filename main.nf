@@ -1,14 +1,5 @@
 #!/usr/bin/env nextflow
 
-// Developer notes
-//
-// This template workflow provides a basic structure to copy in order
-// to create a new workflow. Current recommended practices are:
-//     i) create a simple command-line interface.
-//    ii) include an abstract workflow scope named "pipeline" to be used
-//        in a module fashion
-//   iii) a second concrete, but anonymous, workflow scope to be used
-//        as an entry point when using this workflow in isolation.
 
 import groovy.json.JsonBuilder
 nextflow.enable.dsl = 2
@@ -42,6 +33,36 @@ process getVersions {
     """
     python -c "import pysam; print(f'pysam,{pysam.__version__}')" >> versions.txt
     fastcat --version | sed 's/^/fastcat,/' >> versions.txt
+    """
+}
+
+
+process publish {
+    // publish inputs to output directory
+    label "wf_common"
+    publishDir (
+        params.out_dir,
+        mode: "copy",
+        saveAs: { dirname ? "$dirname/$fname" : fname }
+    )
+    input:
+        tuple path(fname), val(dirname)
+    output:
+        path fname
+    """
+    """
+}
+
+
+process filter_pedigree {
+    label "wf_common"
+    publishDir "${params.out_dir}", mode: 'copy', pattern: "${family_id}.wf-trio.ped"
+    input:
+        tuple val(family_id), path("ped_file.ped")
+    output:
+        path "${family_id}.wf-trio.ped"
+    """
+    grep -P "^${family_id}\t" "ped_file.ped" > "${family_id}.wf-trio.ped"
     """
 }
 
@@ -119,7 +140,6 @@ workflow pipeline {
             stats: stats
         }.set { for_report }
         metadata = for_report.meta.collect()
-
         client_fields = params.client_fields && file(params.client_fields).exists() ? file(params.client_fields) : OPTIONAL_FILE
         software_versions = getVersions()
         workflow_params = getParams()
@@ -153,6 +173,7 @@ workflow {
     if (params.containsKey("mutate_fastq")) {
         CWUtil.mutateParam(params, "fastq", params.mutate_fastq)
     }
+
 
     ref = Channel.fromPath(params.ref, checkIfExists: true)
     ref_fp = file(params.ref + ".fai")
@@ -270,12 +291,18 @@ workflow {
         metamap_basecaller_cfg.map {
             log.info "Detected basecaller_model: ${it}"
             log.warn "Overriding basecaller_model: ${params.override_basecaller_cfg}"
+            if ("${it}" in ["dna_r10.4.1_e8.2_400bps_hac@v5.0.0", "dna_r10.4.1_e8.2_400bps_sup@v5.0.0"]){
+                log.info "Note: As basecaller is v5.0.0 the Clair3 v5.0.0 and Clair3-Nova v4.0.0 models will be used for the analysis, see README for more details."
+            }
         }
         basecaller_cfg = Channel.of(params.override_basecaller_cfg)
     }
     else {
         basecaller_cfg = metamap_basecaller_cfg
-            | map { log.info "Detected basecaller_model: ${it}"; it }
+            | map { log.info "Detected basecaller_model: ${it}"; it 
+            if ("${it}" in ["dna_r10.4.1_e8.2_400bps_hac@v5.0.0", "dna_r10.4.1_e8.2_400bps_sup@v5.0.0"]){
+                log.info "Note: As basecaller is v5.0.0 the Clair3 v5.0.0 and Clair3-Nova v4.0.0 models will be used for the analysis, see README for more details."
+            } }
             | map { log.info "Using basecaller_model: ${it}"; it }
             | first  // unpack from list
     }
@@ -311,7 +338,8 @@ workflow {
         gl_conf = Channel.fromPath("$projectDir/data/glnexus_conf.yml")
         log.info "No glnexus_config provided using default: $projectDir/data/glnexus_conf.yml"
     }
-    ped_file = Channel.fromPath(params.pedigree_file, checkIfExists: true)
+    ped_ch = Channel.fromPath(params.pedigree_file, checkIfExists: true)
+    ped_file = filter_pedigree(fam_id.combine(ped_ch))
 
     // Prepare the reference channel
     reference = prepare_reference([
@@ -363,7 +391,10 @@ workflow {
 
     // Get stats are standard report
     pipeline(samples)
-
+    // Output results
+    pipeline.out.workflow_params
+    | map { [it, null] }
+    | publish
 }
 
 workflow.onComplete {

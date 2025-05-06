@@ -34,6 +34,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A default tandem repeat `tr_bed` is provided to sniffles2. Can be overwritten with the `tr_bed` parameter.
 - Reconciled workflow with wf-template v5.5.0.
 - Annotation of tandem repeat regions and long homopolymers with `bcftools annotate` now uses ID, REF and ALT column to avoid records with partial overlaps to be annotated.
+- Updated to wf-template v5.6.0, changing:
+    - Reduce verbosity of debug logging from fastcat which can occasionally occlude errors found in FASTQ files during ingress.
+    - Log banner art to say "EPI2ME" instead of "EPI2ME Labs" to match current branding. This has no effect on the workflow outputs.
+### Fixed
+- Updated to wf-template v5.6.0, fixing:
+    - dacite.exceptions.WrongTypeError during report generation when barcode is null.
+    - Sequence summary read length N50 incorrectly displayed minimum read length, it now correctly shows the N50.
+    - Sequence summary component alignment and coverage plots failed to plot under some conditions.
+
 
 ## [v0.0.2]
 ### Fixed

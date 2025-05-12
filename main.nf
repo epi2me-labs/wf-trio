@@ -288,26 +288,20 @@ workflow {
     // use params.override_basecaller_cfg as basecaller_cfg if provided, regardless of what was detected
     // we'll have exploded by now if we have no idea what the config is
     if (params.override_basecaller_cfg) {
-        metamap_basecaller_cfg.map {
+        metamap_basecaller_cfg
+        | map {
             log.info "Detected basecaller_model: ${it}"
             log.warn "Overriding basecaller_model: ${params.override_basecaller_cfg}"
-            if ("${it}" in ["dna_r10.4.1_e8.2_400bps_hac@v5.0.0", "dna_r10.4.1_e8.2_400bps_sup@v5.0.0"]){
-                log.info "Note: As basecaller is v5.0.0 the Clair3 v5.0.0 and Clair3-Nova v4.0.0 models will be used for the analysis, see README for more details."
-            }
         }
         basecaller_cfg = Channel.of(params.override_basecaller_cfg)
     }
     else {
         basecaller_cfg = metamap_basecaller_cfg
             | map {
-                log.info "Detected basecaller_model: ${it}";
-                if ("${it}" in ["dna_r10.4.1_e8.2_400bps_hac@v5.0.0", "dna_r10.4.1_e8.2_400bps_sup@v5.0.0"]){
-                    log.info "Note: As basecaller is v5.0.0 the Clair3 v5.0.0 and Clair3-Nova v4.0.0 models will be used for the analysis, see README for more details."
-                }
+                log.info "Detected basecaller_model: ${it}"
+                log.info "Using basecaller_model: ${it}"
                 it
-            }
-            | map { log.info "Using basecaller_model: ${it}"; it }
-            | first  // unpack from list
+            } | first  // unpack from list
     }
 
 

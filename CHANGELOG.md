@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `{family_id}.wf_trio_snp.vcf.gz` output file contains the joint pedigree phased variant calling.
 - A default tandem repeat `tr_bed` is provided to sniffles2. Can be overwritten with the `tr_bed` parameter.
 - Annotation of tandem repeat regions and long homopolymers with `bcftools annotate` now uses ID, REF and ALT column to avoid records with partial overlaps to be annotated.
+- Output per sample files in per sample folders.
 - Updated to wf-template v5.6.1, changing:
     - Reduce verbosity of debug logging from fastcat which can occasionally occlude errors found in FASTQ files during ingress.
     - Log banner art to say "EPI2ME" instead of "EPI2ME Labs" to match current branding. This has no effect on the workflow outputs.

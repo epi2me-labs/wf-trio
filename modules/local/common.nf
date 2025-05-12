@@ -557,7 +557,7 @@ process publish {
 
 // Annotate tandem repeat and homopolymers
 process annotate_low_complexity {
-    publishDir "${params.out_dir}", mode: 'copy', pattern: "*wf_trio_*"
+    publishDir "${output_folder}", mode: 'copy', pattern: "*wf_trio_*"
     cpus 2
     memory 4.GB
     label "wftrio"
@@ -582,6 +582,12 @@ process annotate_low_complexity {
         }
         if (extension !in ["vcf", "gvcf"]){
             error "Invalid extension"
+        }
+        // If annotating individual vcfs, publish to per sample folder
+        // else if joint family vcf publish to out_dir 
+        output_folder = "${params.out_dir}"  // nodef: used by publishDir
+        if (prefix != params.family_id){
+            output_folder = "${params.out_dir}/${prefix}"
         }
         """
         # Filter VCF with BED file

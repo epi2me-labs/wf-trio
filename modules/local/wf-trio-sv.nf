@@ -48,7 +48,7 @@ process sniffles2 {
         tuple val(xam_meta), path("${xam_meta.alias}.${suffix}.vcf.gz"), path("${xam_meta.alias}.${suffix}.vcf.gz.tbi"), emit: compressed
         tuple val(xam_meta), path("${xam_meta.alias}.${suffix}.snf"), emit: snf
     publishDir \
-        path: "${params.out_dir}",
+        path: "${params.out_dir}/${xam_meta.alias}",
         pattern:  "${xam_meta.alias}.${suffix}.snf",
         mode: 'copy'
     script:
@@ -134,7 +134,7 @@ process filterCalls {
 //reusable currently report name is hard coded
 process report {
     label "wf_common"
-    publishDir "${params.out_dir}", mode: 'copy', pattern: "*wf-trio-sv-report.html"
+    publishDir "${params.out_dir}/${xam_meta.alias}", mode: 'copy', pattern: "*wf-trio-sv-report.html"
     cpus 1
     memory 4.GB
     input:
@@ -197,7 +197,6 @@ process makeJointReport {
             wfversion = workflow.commitId
         }
         """
-        grep -P "^${family_id}\t" "ped_file.ped" > "ped_file_family.ped"
         workflow-glue report_joint_sv \
         $report_name \
         --versions $versions \
@@ -205,6 +204,6 @@ process makeJointReport {
         --sample_name $family_id \
         --wf_version ${workflow.manifest.version} \
         --rtg_mendelian ${rtg_mendelian} \
-        --ped_file "ped_file_family.ped"
+        --ped_file "ped_file.ped"
         """
 }

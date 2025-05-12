@@ -1,7 +1,7 @@
 {
   "files": {
     "snp-vcf": {
-      "filepath": "{{ alias }}.wf_trio_snp.vcf.gz",
+      "filepath": "{{ alias }}/{{ alias }}.wf_trio_snp.vcf.gz",
       "title": "Small variant VCF",
       "description": "VCF file with small variant calls (SNPs and indels) for the sample. These will be unphased.",
       "mime-type": "application/gzip",
@@ -9,7 +9,7 @@
       "type": "per-sample"
     },
     "snp-gvcf": {
-      "filepath": "{{ alias }}.wf_trio_snp.gvcf.gz",
+      "filepath": "{{ alias }}/{{ alias }}.wf_trio_snp.gvcf.gz",
       "title": "Small variant GVCF",
       "description": "GVCF file with the SNPs for the sample. These will be unphased.",
       "mime-type": "application/gzip",
@@ -25,7 +25,7 @@
       "type": "aggregated"
     },
     "sv-vcf": {
-      "filepath": "{{ alias }}.wf_trio_sv.vcf.gz",
+      "filepath": "{{ alias }}/{{ alias }}.wf_trio_sv.vcf.gz",
       "title": "Structural variant VCF",
       "description": "VCF file with the SVs for the sample. These will be phased if SNP is enabled.",
       "mime-type": "application/gzip",
@@ -41,7 +41,7 @@
       "type": "aggregated"
     },
     "sv-snf": {
-      "filepath": "{{ alias }}.wf_trio_sv.snf",
+      "filepath": "{{ alias }}/{{ alias }}.wf_trio_sv.snf",
       "title": "Structural variant SNF",
       "description": "SNF file with the SVs for the sample, for onward SV merging.",
       "mime-type": "application/gzip",
@@ -49,7 +49,7 @@
       "type": "per-sample"
     },
     "haplotagged-alignment": {
-      "filepath": "{{ alias }}.haplotagged.bam",
+      "filepath": "{{ alias }}/{{ alias }}.haplotagged.bam",
       "title": "Haplotagged alignment file",
       "description": "BAM file with the haplotagged reads for the sample. Will be pedigree phased if phased option is used.",
       "mime-type": "application/gzip",
@@ -57,7 +57,7 @@
       "type": "per-sample"
     },    
     "haplotagged-alignment-index": {
-      "filepath": "{{ alias }}.haplotagged.bam.bai",
+      "filepath": "{{ alias }}/{{ alias }}.haplotagged.bam.bai",
       "title": "Haplotagged alignment file index",
       "description": "The index of the resulting BAM file with the haplotagged reads for the sample.",
       "mime-type": "application/octet-stream",
@@ -105,7 +105,7 @@
       "type": "aggregated"
     },
     "individual-sv-report": {
-      "filepath": "{{ sample_id }}.wf-trio-sv-report.html",
+      "filepath": "{{ alias }}/{{ alias }}.wf-trio-sv-report.html",
       "title": "Individual SV report",
       "description": "Analysis and stats relating to the SVs for each individual.",
       "mime-type": "text/html",
@@ -113,7 +113,7 @@
       "type": "per-sample"
     },
     "individual-small-variants-report": {
-      "filepath": "{{ sample_id }}.wf-trio-snp-report.html",
+      "filepath": "{{ alias }}/{{ alias }}.wf-trio-snp-report.html",
       "title": "Individual small variants report",
       "description": "Analysis and stats relating to the small variants for each individual.",
       "mime-type": "text/html",
@@ -121,7 +121,7 @@
       "type": "per-sample"
     },
     "individual-qc-report": {
-      "filepath": "{{ sample_id }}.wf-trio-qc-report.html",
+      "filepath": "{{ alias }}/{{ alias }}.wf-trio-qc-report.html",
       "title": "Individual QC report",
       "description": "Quality control read stats including read length and quality scores.",
       "mime-type": "text/html",

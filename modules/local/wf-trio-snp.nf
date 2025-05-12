@@ -364,7 +364,7 @@ process cat_haplotagged_contigs {
     label "wf_human_snp"
     cpus 4
     memory 15.GB // cat should not need this, but weirdness occasionally strikes
-    publishDir "${params.out_dir}", mode: 'copy', pattern: "*haplotagged*"
+    publishDir "${params.out_dir}/${meta.alias}", mode: 'copy', pattern: "*haplotagged*"
     input:
         tuple val(meta), path("contig_bams/*"),
             path(ref), path(ref_idx), path(ref_cache), env(REF_PATH) // intermediate input always BAM here
@@ -514,7 +514,7 @@ process makeJointReport {
         --sample_name $family_id \
         --wf_version ${workflow.manifest.version} \
         --rtg_mendelian ${rtg_mendelian} \
-        --ped_file "ped_file_family.ped"
+        --ped_file "ped_file.ped"
         """
 }
 

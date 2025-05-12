@@ -69,12 +69,12 @@ process filter_pedigree {
 
 process makeReport {
     label "wf_common"
-    publishDir "${params.out_dir}", mode: 'copy', pattern: "*wf-trio-qc-report.html"
+    publishDir "${params.out_dir}/${meta.alias}", mode: 'copy', pattern: "*wf-trio-qc-report.html"
     input:
         tuple val(meta), path(stats), path ("versions/*"), path("params.json")
         path(client_fields)
     output:
-        path "*wf-trio-*.html"
+        path "${meta.alias}.wf-trio-qc-report.html"
     script:
         String report_name = "${meta.alias}.wf-trio-qc-report.html"
         String metadata = new JsonBuilder(meta).toPrettyString()
@@ -299,10 +299,13 @@ workflow {
     }
     else {
         basecaller_cfg = metamap_basecaller_cfg
-            | map { log.info "Detected basecaller_model: ${it}"; it 
-            if ("${it}" in ["dna_r10.4.1_e8.2_400bps_hac@v5.0.0", "dna_r10.4.1_e8.2_400bps_sup@v5.0.0"]){
-                log.info "Note: As basecaller is v5.0.0 the Clair3 v5.0.0 and Clair3-Nova v4.0.0 models will be used for the analysis, see README for more details."
-            } }
+            | map {
+                log.info "Detected basecaller_model: ${it}";
+                if ("${it}" in ["dna_r10.4.1_e8.2_400bps_hac@v5.0.0", "dna_r10.4.1_e8.2_400bps_sup@v5.0.0"]){
+                    log.info "Note: As basecaller is v5.0.0 the Clair3 v5.0.0 and Clair3-Nova v4.0.0 models will be used for the analysis, see README for more details."
+                }
+                it
+            }
             | map { log.info "Using basecaller_model: ${it}"; it }
             | first  // unpack from list
     }

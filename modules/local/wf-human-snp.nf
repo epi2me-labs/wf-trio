@@ -328,7 +328,7 @@ process lookup_clair3_nova_model {
 //reusable currently report name is hard coded
 process makeReport {
     label "wf_common"
-    publishDir "${params.out_dir}", mode: 'copy', pattern: "*wf-trio-snp-report.html"
+    publishDir "${params.out_dir}/${xam_meta.alias}", mode: 'copy', pattern: "*wf-trio-snp-report.html"
     cpus 1
     memory 4.GB
     input:

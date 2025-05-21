@@ -37,7 +37,7 @@ process sniffles2_joint {
 process sniffles2 {
     label "wf_human_sv"
     cpus 4
-    memory 6.GB
+    memory 24.GB
     input:
         tuple path(xam), path(xam_idx), val(xam_meta),
             path(tr_bed),

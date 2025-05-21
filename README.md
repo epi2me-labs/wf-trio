@@ -89,16 +89,18 @@ The workflow can then be run with the downloaded demo data using:
 nextflow run epi2me-labs/wf-trio \
 	--bed 'wf-trio-demo/Ashkenazi_test.bed' \
 	--family_id 'Ashkenazi' \
-	--proband_bam 'wf-trio-demo/Ashkenazi_test_data/nf_bam_test_hg002/hg002.bam' \
-	--proband_sample_name 'hg002' \
-	--pat_bam 'wf-trio-demo/Ashkenazi_test_data/nf_bam_test_hg003/hg003.bam' \
-	--pat_sample_name 'hg003' \
 	--mat_bam 'wf-trio-demo/Ashkenazi_test_data/nf_bam_test_hg004/hg004.bam' \
 	--mat_sample_name 'hg004' \
+	--out_dir 'demo_results' \
+	--pat_bam 'wf-trio-demo/Ashkenazi_test_data/nf_bam_test_hg003/hg003.bam' \
+	--pat_sample_name 'hg003' \
 	--pedigree_file 'wf-trio-demo/ped_file.ped' \
+	--phased \
+	--proband_bam 'wf-trio-demo/Ashkenazi_test_data/nf_bam_test_hg002/hg002.bam' \
+	--proband_sample_name 'hg002' \
 	--ref 'wf-trio-demo/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta' \
-	--snp --sv --phased \
-	--out_dir demo_results \
+	--snp \
+	--sv \
 	-profile standard
 ```
 

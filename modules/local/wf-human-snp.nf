@@ -340,8 +340,10 @@ process makeReport {
     script:
         def report_name = "${xam_meta.alias}.wf-trio-snp-report.html"
         def wfversion = workflow.manifest.version
+        String workflow_name = workflow.manifest.name.replace("epi2me-labs/", "")
         """
         workflow-glue report_snp \
+        --workflow_name ${workflow_name} \
         $report_name \
         --versions $versions \
         --params params.json \
@@ -349,6 +351,5 @@ process makeReport {
         --sample_name $xam_meta.alias \
         --clinvar_vcf "" \
         --workflow_version ${workflow.manifest.version}
-        sed -i 's/wf-human-variation/wf-trio/' "${xam_meta.alias}.wf-trio-snp-report.html"
         """
 }

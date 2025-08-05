@@ -144,10 +144,13 @@ process report {
     output:
         path "${xam_meta.alias}.wf-trio-sv-report.html", emit: html
     script:
+        String workflow_name = workflow.manifest.name.replace("epi2me-labs/", "")
         def report_name = "${xam_meta.alias}.wf-trio-sv-report.html"
     """
+    
     workflow-glue report_sv \
         $report_name \
+        --workflow_name ${workflow_name} \
         --vcf $vcf \
         --params params.json \
         --params-hidden 'help,schema_ignore_params,${params.schema_ignore_params}' \
@@ -156,7 +159,6 @@ process report {
         --commit ${workflow.commitId} \
         --output_json "${xam_meta.alias}.svs.json" \
         --workflow_version ${workflow.manifest.version}
-    sed -i 's/wf-human-variation/wf-trio/' "${xam_meta.alias}.wf-trio-sv-report.html"
     """
 }
 

@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - HTML report titles now simply describe the analysis report type; removing sample names and the workflow name to reduce clutter and match the visual style of our other workflow reports.
 ### Fixed
 - `store_dir` parameter format incorrectly declared in the schema preventing the workflow from using BED files installed by a 2ME on Windows.
+- The RTG Tools version was formatted incorrectly in the small variant HTML reports. It is now shown correctly.
 
 ## [v0.9.1]
 This patch release of wf-trio addresses a problem identified in Sniffles 2.6.2, which was introduced by our wf-trio 0.9.0 release. All users of wf-trio 0.9.0 should immediately adopt this release.

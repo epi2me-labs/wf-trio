@@ -86,7 +86,8 @@ process makeReport {
         --stats $stats/bamstats.readstats.tsv.gz \
         $client_fields_args \
         --params params.json \
-        --metadata metadata.json
+        --metadata metadata.json \
+        --wf_version ${workflow.manifest.version}
     """
 }
 

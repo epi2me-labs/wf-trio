@@ -481,7 +481,7 @@ process addVersions {
     script:
         """
         cat other_versions.txt > versions.txt
-        rtg RTG_MEM=2G --version | head -n 1 | sed 's/..*Product:..*RTG Tools/RTG Tools/' | sed 's/s /s,/' >> versions.txt
+        rtg RTG_MEM=2G --version | head -n 1 | sed 's/..*Product:..*RTG Tools/RTG Tools/' | sed 's/   .*(.*//' | sed 's/s /s,/' >> versions.txt
         whatshap --version | awk '{print "whatshap,"\$1}' >> versions.txt
         (glnexus_cli 2>&1 | sed 1q | sed 's/^.*release //' | sed 's/\\s.*\$//' | sed 's/^/glnexus,/' >> versions.txt) || echo "done"
         """

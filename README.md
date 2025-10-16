@@ -1,4 +1,4 @@
-# Trio Sequencing workflow
+# Trio
 
 Nextflow workflow for trio sequencing analysis.
 

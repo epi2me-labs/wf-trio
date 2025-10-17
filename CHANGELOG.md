@@ -4,11 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [unreleased]
+## [v0.9.2]
+This patch release of wf-trio updates the wf-human-variation components. There are also other minor fixes to the report and the workflow title. These changes do not affect any workflow outputs or variant calls.
+
 ### Changed
 - Updated to wf-template v5.6.2 to maintain compliance with our latest wf-template standard: this does not impact the workflow.
-- Updated the wf-human-variation component to v2.7.2; this does not affect variant calls. Minor improvements are described by the other entries in this changelog.
+- Updated the wf-human-variation component to v2.7.2. Minor improvements are described by the other entries in this changelog.
 - HTML report titles now simply describe the analysis report type; removing sample names and the workflow name to reduce clutter and match the visual style of our other workflow reports.
+- Removed workflow suffix from workflow title.
 ### Fixed
 - `store_dir` parameter format incorrectly declared in the schema preventing the workflow from using BED files installed by a 2ME on Windows.
 - QC HTML reports showed workflow version as 'unknown' and now correctly display the workflow version.
